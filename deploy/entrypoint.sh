@@ -16,7 +16,7 @@ DB_USER="${DB_USER:-solar_user}"
 DB_PASS="${DB_PASS:-}"
 DB_NAME="${DB_NAME:-solarlisting}"
 DB_PREFIX="${DB_PREFIX:-fl_}"
-MYSQL_OPTS="--ssl-mode=DISABLED"
+MYSQL_OPTS="--skip-ssl"
 SITE_URL="${SITE_URL:-https://findsolarinstallers.xyz}"
 ADMIN_DIR="${ADMIN_DIR:-admin}"
 CACHE_POSTFIX=$(date +%s%N | md5sum | head -c 8)

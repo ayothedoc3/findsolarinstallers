@@ -16,6 +16,7 @@ DB_USER="${DB_USER:-solar_user}"
 DB_PASS="${DB_PASS:-}"
 DB_NAME="${DB_NAME:-solarlisting}"
 DB_PREFIX="${DB_PREFIX:-fl_}"
+MYSQL_OPTS="--ssl-mode=DISABLED"
 SITE_URL="${SITE_URL:-https://findsolarinstallers.xyz}"
 ADMIN_DIR="${ADMIN_DIR:-admin}"
 CACHE_POSTFIX=$(date +%s%N | md5sum | head -c 8)
@@ -89,7 +90,7 @@ fi
 echo "[entrypoint] Waiting for MySQL at ${DB_HOST}:${DB_PORT} ..."
 MYSQL_READY=0
 for i in $(seq 1 60); do
-    if mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; then
+    if mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} --silent 2>/dev/null; then
         echo "[entrypoint] MySQL is ready."
         MYSQL_READY=1
         break
@@ -109,7 +110,7 @@ run_sql_file() {
     if [ -f "$file" ]; then
         echo "[entrypoint] Importing ${desc} ..."
         sed "s/{db_prefix}/${DB_PREFIX}/g" "$file" | \
-            mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" 2>&1 || \
+            mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" 2>&1 || \
             echo "[entrypoint] WARNING: ${desc} had errors (may be expected for optional data)"
     else
         echo "[entrypoint] SKIP: ${desc} not found at ${file}"
@@ -121,7 +122,7 @@ run_sql_file() {
 # ---------------------------------------------------------------------------
 if [ "$MYSQL_READY" = "1" ]; then
     # Check if the main Flynax tables exist (fl_config is always present after dump.sql)
-    TABLE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+    TABLE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" \
         -N -e "SHOW TABLES LIKE '${DB_PREFIX}config'" 2>/dev/null | wc -l || echo "0")
 
     if [ "$TABLE_CHECK" = "0" ]; then
@@ -154,14 +155,14 @@ if [ "$MYSQL_READY" = "1" ]; then
         echo "[entrypoint] Database tables already exist — skipping import."
 
         # Still check for solar setup and pipeline tables on subsequent boots
-        SOLAR_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+        SOLAR_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" \
             -N -e "SELECT COUNT(*) FROM \`${DB_PREFIX}categories\` WHERE ID = 2000" 2>/dev/null || echo "0")
 
         if [ "$SOLAR_CHECK" = "0" ]; then
             run_sql_file "${SQL_DIR}/solar_setup.sql" "solar_setup.sql (solar directory setup)"
         fi
 
-        PIPELINE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+        PIPELINE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" \
             -N -e "SHOW TABLES LIKE '${DB_PREFIX}solar_pipeline_runs'" 2>/dev/null | wc -l || echo "0")
 
         if [ "$PIPELINE_CHECK" = "0" ]; then

@@ -4,10 +4,13 @@ set -e
 # =============================================================================
 # Solar Directory Entrypoint
 # =============================================================================
-# Generates config.inc.php from environment variables and starts Apache + cron
+# Generates config.inc.php, initializes the database, and starts Apache + cron.
+# All DB initialization is handled here (not in MySQL init scripts) because
+# Coolify cannot bind-mount files into the MySQL container.
 # =============================================================================
 
 CONFIG_FILE="/var/www/html/includes/config.inc.php"
+SQL_DIR="/var/www/html/install/mysql"
 DB_HOST="${DB_HOST:-mysql}"
 DB_PORT="${DB_PORT:-3306}"
 DB_USER="${DB_USER:-solar_user}"
@@ -81,46 +84,90 @@ ENVEOF
     chown www-data:www-data "$ENV_FILE"
 fi
 
+# ---------------------------------------------------------------------------
 # Wait for MySQL to be ready
+# ---------------------------------------------------------------------------
 echo "[entrypoint] Waiting for MySQL at ${DB_HOST}:${DB_PORT} ..."
-for i in $(seq 1 30); do
-    if php -r "new mysqli('${DB_HOST}', '${DB_USER}', '${DB_PASS}', '${DB_NAME}', ${DB_PORT});" 2>/dev/null; then
+MYSQL_READY=0
+for i in $(seq 1 60); do
+    if mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; then
         echo "[entrypoint] MySQL is ready."
+        MYSQL_READY=1
         break
     fi
-    echo "[entrypoint]   Attempt $i/30 - waiting..."
-    sleep 2
+    echo "[entrypoint]   Attempt $i/60 - waiting..."
+    sleep 3
 done
 
-# Run solar_setup.sql if solar categories don't exist yet
-SOLAR_CHECK=$(php -r "
-\$m = new mysqli('${DB_HOST}', '${DB_USER}', '${DB_PASS}', '${DB_NAME}', ${DB_PORT});
-\$r = \$m->query(\"SELECT COUNT(*) as c FROM \\\`${DB_PREFIX}categories\\\` WHERE ID = 2000\");
-echo \$r ? \$r->fetch_assoc()['c'] : '0';
-" 2>/dev/null || echo "0")
-
-if [ "$SOLAR_CHECK" = "0" ]; then
-    echo "[entrypoint] Running solar_setup.sql ..."
-    if [ -f "/var/www/html/install/mysql/solar_setup.sql" ]; then
-        sed "s/{db_prefix}/${DB_PREFIX}/g" /var/www/html/install/mysql/solar_setup.sql | \
-            mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" 2>/dev/null || \
-            echo "[entrypoint] WARNING: solar_setup.sql may have partially failed"
-    fi
+if [ "$MYSQL_READY" = "0" ]; then
+    echo "[entrypoint] ERROR: MySQL did not become ready in time. Starting Apache anyway."
 fi
 
-# Run pipeline_tables.sql if pipeline tables don't exist yet
-PIPELINE_CHECK=$(php -r "
-\$m = new mysqli('${DB_HOST}', '${DB_USER}', '${DB_PASS}', '${DB_NAME}', ${DB_PORT});
-\$r = \$m->query(\"SHOW TABLES LIKE '${DB_PREFIX}solar_pipeline_runs'\");
-echo \$r ? \$r->num_rows : '0';
-" 2>/dev/null || echo "0")
+# Helper function to run SQL files
+run_sql_file() {
+    local file="$1"
+    local desc="$2"
+    if [ -f "$file" ]; then
+        echo "[entrypoint] Importing ${desc} ..."
+        sed "s/{db_prefix}/${DB_PREFIX}/g" "$file" | \
+            mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" 2>&1 || \
+            echo "[entrypoint] WARNING: ${desc} had errors (may be expected for optional data)"
+    else
+        echo "[entrypoint] SKIP: ${desc} not found at ${file}"
+    fi
+}
 
-if [ "$PIPELINE_CHECK" = "0" ]; then
-    echo "[entrypoint] Running pipeline_tables.sql ..."
-    if [ -f "/var/www/html/install/mysql/pipeline_tables.sql" ]; then
-        sed "s/{db_prefix}/${DB_PREFIX}/g" /var/www/html/install/mysql/pipeline_tables.sql | \
-            mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" 2>/dev/null || \
-            echo "[entrypoint] WARNING: pipeline_tables.sql may have partially failed"
+# ---------------------------------------------------------------------------
+# Database initialization — runs only if main tables don't exist yet
+# ---------------------------------------------------------------------------
+if [ "$MYSQL_READY" = "1" ]; then
+    # Check if the main Flynax tables exist (fl_config is always present after dump.sql)
+    TABLE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+        -N -e "SHOW TABLES LIKE '${DB_PREFIX}config'" 2>/dev/null | wc -l || echo "0")
+
+    if [ "$TABLE_CHECK" = "0" ]; then
+        echo "[entrypoint] ============================================="
+        echo "[entrypoint] First run — importing database schema ..."
+        echo "[entrypoint] ============================================="
+
+        # 1. Import main dump (core Flynax tables)
+        run_sql_file "${SQL_DIR}/dump.sql" "dump.sql (core tables)"
+
+        # 2. Import additional fl_*.sql files (locations, formats, etc.)
+        for sqlfile in ${SQL_DIR}/fl_*.sql; do
+            if [ -f "$sqlfile" ]; then
+                fname=$(basename "$sqlfile")
+                run_sql_file "$sqlfile" "$fname"
+            fi
+        done
+
+        # 3. Import post_package.sql (hooks, plugin registrations)
+        run_sql_file "${SQL_DIR}/post_package.sql" "post_package.sql (hooks/plugins)"
+
+        # 4. Import solar setup (categories, fields, plans)
+        run_sql_file "${SQL_DIR}/solar_setup.sql" "solar_setup.sql (solar directory setup)"
+
+        # 5. Import pipeline tables
+        run_sql_file "${SQL_DIR}/pipeline_tables.sql" "pipeline_tables.sql (automation tables)"
+
+        echo "[entrypoint] Database initialization complete."
+    else
+        echo "[entrypoint] Database tables already exist — skipping import."
+
+        # Still check for solar setup and pipeline tables on subsequent boots
+        SOLAR_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+            -N -e "SELECT COUNT(*) FROM \`${DB_PREFIX}categories\` WHERE ID = 2000" 2>/dev/null || echo "0")
+
+        if [ "$SOLAR_CHECK" = "0" ]; then
+            run_sql_file "${SQL_DIR}/solar_setup.sql" "solar_setup.sql (solar directory setup)"
+        fi
+
+        PIPELINE_CHECK=$(mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+            -N -e "SHOW TABLES LIKE '${DB_PREFIX}solar_pipeline_runs'" 2>/dev/null | wc -l || echo "0")
+
+        if [ "$PIPELINE_CHECK" = "0" ]; then
+            run_sql_file "${SQL_DIR}/pipeline_tables.sql" "pipeline_tables.sql (automation tables)"
+        fi
     fi
 fi
 

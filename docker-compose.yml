@@ -45,8 +45,6 @@ services:
       - MYSQL_PASSWORD=${DB_PASS:-}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./install/mysql:/docker-entrypoint-initdb.d/sql
-      - ./deploy/mysql-init.sh:/docker-entrypoint-initdb.d/000-init.sh
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]

@@ -33,9 +33,10 @@ define('RL_DBNAME', '${DB_NAME}');
 define('RL_DBPREFIX', '${DB_PREFIX}');
 
 define('RL_DS', DIRECTORY_SEPARATOR);
-define('RL_DIR', '/var/www/html/');
-define('RL_ROOT', RL_DIR);
+define('RL_DIR', '');
+define('RL_ROOT', '/var/www/html/');
 define('RL_INC', RL_ROOT . 'includes' . RL_DS);
+define('RL_CUSTOM', RL_ROOT . 'custom' . RL_DS);
 define('RL_CLASSES', RL_INC . 'classes' . RL_DS);
 define('RL_CONTROL', RL_INC . 'controllers' . RL_DS);
 define('RL_LIBS', RL_ROOT . 'libs' . RL_DS);
@@ -50,6 +51,9 @@ define('RL_PLUGINS_URL', '${SITE_URL}/plugins/');
 
 define('RL_URL_HOME', '${SITE_URL}/');
 define('ADMIN', '${ADMIN_DIR}');
+define('ADMIN_DIR', ADMIN . RL_DS);
+define('RL_ADMIN', RL_ROOT . ADMIN . RL_DS);
+define('RL_ADMIN_CONTROL', RL_ADMIN . 'controllers' . RL_DS);
 
 define('RL_LANG_CACHE', true);
 define('RL_SETUP', 'JGxpY2Vuc2VfZG9tYWluID0gImZpbmRzb2xhcmluc3RhbGxlcnMueHl6IjskbGljZW5zZV9udW1iZXIgPSAiRkwxS1U2UUxJVUpBIjs=');

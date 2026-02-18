@@ -8,8 +8,8 @@
 services:
   app:
     build: .
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     environment:
       # Database (Coolify sets these automatically if you add a MySQL service)
       - DB_HOST=${DB_HOST:-mysql}

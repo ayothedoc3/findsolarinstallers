@@ -1,13 +1,12 @@
 #!/bin/bash
-set -e
 
-# =============================================================================
-# Solar Directory Entrypoint
-# =============================================================================
+echo "[entrypoint] =========================================="
+echo "[entrypoint] Solar Directory Entrypoint starting ..."
+echo "[entrypoint] =========================================="
+
 # Generates config.inc.php, initializes the database, and starts Apache + cron.
 # All DB initialization is handled here (not in MySQL init scripts) because
 # Coolify cannot bind-mount files into the MySQL container.
-# =============================================================================
 
 CONFIG_FILE="/var/www/html/includes/config.inc.php"
 SQL_DIR="/var/www/html/install/mysql"
@@ -19,7 +18,7 @@ DB_NAME="${DB_NAME:-solarlisting}"
 DB_PREFIX="${DB_PREFIX:-fl_}"
 SITE_URL="${SITE_URL:-https://findsolarinstallers.xyz}"
 ADMIN_DIR="${ADMIN_DIR:-admin}"
-CACHE_POSTFIX=$(head -c 4 /dev/urandom | xxd -p)
+CACHE_POSTFIX=$(date +%s%N | md5sum | head -c 8)
 
 echo "[entrypoint] Generating config.inc.php ..."
 

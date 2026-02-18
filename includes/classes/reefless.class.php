@@ -934,7 +934,36 @@ class reefless extends rlDb
         @date_default_timezone_set($config['timezone']);
 
         /* set MySQL timezone */
-        $this->query("SET time_zone = '{$l_timezone[$config['timezone']][0]}'");
+        $mysqlTimezone = '';
+
+        if (!empty($l_timezone[$config['timezone']][0])) {
+            $mysqlTimezone = $l_timezone[$config['timezone']][0];
+        } else {
+            try {
+                $timezone = new \DateTimeZone($config['timezone']);
+                $mysqlTimezone = (new \DateTime('now', $timezone))->format('P');
+            } catch (\Exception $e) {
+                $mysqlTimezone = 'SYSTEM';
+            }
+        }
+
+        if (!$mysqlTimezone) {
+            $mysqlTimezone = 'SYSTEM';
+        }
+
+        $timezoneEscaped = $this->realEscapeString($mysqlTimezone);
+        $timezoneEscaped = $timezoneEscaped ?: 'SYSTEM';
+
+        $dieIfError = $this->dieIfError;
+        $this->dieIfError = false;
+
+        $setTimezoneResult = $this->query("SET time_zone = '{$timezoneEscaped}'");
+
+        if ($setTimezoneResult === false && $timezoneEscaped !== 'SYSTEM') {
+            $this->query("SET time_zone = 'SYSTEM'");
+        }
+
+        $this->dieIfError = $dieIfError;
     }
 
     /**

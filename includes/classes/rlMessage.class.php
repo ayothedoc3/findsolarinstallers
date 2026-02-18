@@ -412,7 +412,19 @@ class rlMessage
                 $_COOKIE['client_utc_time']
             );
 
-            $server_tz = $GLOBALS['l_timezone'][$GLOBALS['config']['timezone']][0] ?: "SYSTEM";
+            $server_tz = 'SYSTEM';
+
+            if (!empty($GLOBALS['l_timezone'][$GLOBALS['config']['timezone']][0])) {
+                $server_tz = $GLOBALS['l_timezone'][$GLOBALS['config']['timezone']][0];
+            } elseif (!empty($GLOBALS['config']['timezone'])) {
+                try {
+                    $timezone = new \DateTimeZone($GLOBALS['config']['timezone']);
+                    $server_tz = (new \DateTime('now', $timezone))->format('P');
+                } catch (\Exception $e) {
+                    $server_tz = 'SYSTEM';
+                }
+            }
+
             $sql .= ", IFNULL(CONVERT_TZ(`T1`.`Date`, '" . $server_tz . "', '";
             $sql .= $_COOKIE['client_utc_time'] . "'), `T1`.`Date`) AS `Date` ";
         }

@@ -110,8 +110,8 @@ if [ "$MYSQL_READY" = "0" ]; then
     echo "[entrypoint] ERROR: MySQL did not become ready in time. Starting Apache anyway."
 fi
 
-# Generate admin password hash (bcrypt via PHP)
-ADMIN_PASS_HASH=$(php -r "echo password_hash('${ADMIN_PASS}', PASSWORD_DEFAULT, ['cost' => 12]);")
+# Generate admin password hash (md5 — no $ chars, safe for shell interpolation)
+ADMIN_PASS_HASH=$(echo -n "${ADMIN_PASS}" | md5sum | cut -d' ' -f1)
 echo "[entrypoint] Admin user: ${ADMIN_USER}"
 
 # Helper function to run SQL files
@@ -124,7 +124,7 @@ run_sql_file() {
           sed -e "s/{db_prefix}/${DB_PREFIX}/g" \
               -e "s/{admin_user}/${ADMIN_USER}/g" \
               -e "s/{admin_email}/${ADMIN_EMAIL_ADDR}/g" \
-              -e "s|{admin_password}|${ADMIN_PASS_HASH}|g" \
+              -e "s/{admin_password}/${ADMIN_PASS_HASH}/g" \
               "$file"; } | \
             mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" 2>&1 || \
             echo "[entrypoint] WARNING: ${desc} had errors (may be expected for optional data)"

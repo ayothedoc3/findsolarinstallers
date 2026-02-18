@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libcurl4-openssl-dev \
     cron \
+    default-mysql-client \
+    xxd \
     python3 \
     python3-pip \
     python3-venv \
@@ -20,9 +22,6 @@ RUN apt-get update && apt-get install -y \
         pdo_mysql \
         zip \
         intl \
-        xml \
-        curl \
-        mbstring \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Enable Apache modules
@@ -44,8 +43,9 @@ WORKDIR /var/www/html
 # Copy application code
 COPY . /var/www/html/
 
-# Remove install directory (not needed in production)
-RUN rm -rf /var/www/html/install
+# Keep install/mysql for entrypoint SQL migrations
+# Remove the web installer only
+RUN rm -f /var/www/html/install/index.php /var/www/html/install/install.php 2>/dev/null || true
 
 # Set up Python virtual environment for pipeline
 RUN python3 -m venv /var/www/html/scripts/venv \

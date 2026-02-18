@@ -72,13 +72,14 @@ RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 777 /var/www/html/scripts/data \
     && chmod -R 777 /var/www/html/scripts/logs
 
-# Copy cron configuration
+# Copy cron configuration (strip Windows CRLF line endings)
 COPY deploy/crontab /etc/cron.d/solar-pipeline
-RUN chmod 0644 /etc/cron.d/solar-pipeline && crontab /etc/cron.d/solar-pipeline
+RUN sed -i 's/\r$//' /etc/cron.d/solar-pipeline \
+    && chmod 0644 /etc/cron.d/solar-pipeline && crontab /etc/cron.d/solar-pipeline
 
-# Startup script
+# Startup script (strip Windows CRLF line endings)
 COPY deploy/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 80
 

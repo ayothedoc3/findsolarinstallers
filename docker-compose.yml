@@ -23,7 +23,7 @@ services:
       - ADMIN_DIR=${ADMIN_DIR:-admin}
       # Admin credentials
       - ADMIN_USER=${ADMIN_USER:-admin}
-      - ADMIN_PASS=${ADMIN_PASS:-SolarAdmin2026!}
+      - ADMIN_PASS=${ADMIN_PASS:-}
       # Pipeline
       - OUTSCRAPER_API_KEY=${OUTSCRAPER_API_KEY:-}
       - MONTHLY_CREDIT_BUDGET=${MONTHLY_CREDIT_BUDGET:-10000}

@@ -20,7 +20,7 @@ MYSQL_OPTS="--skip-ssl"
 SITE_URL="${SITE_URL:-https://findsolarinstallers.xyz}"
 ADMIN_DIR="${ADMIN_DIR:-admin}"
 ADMIN_USER="${ADMIN_USER:-admin}"
-ADMIN_PASS="${ADMIN_PASS:-SolarAdmin2026!}"
+ADMIN_PASS="${ADMIN_PASS:-}"
 ADMIN_EMAIL_ADDR="${ADMIN_EMAIL:-admin@findsolarinstallers.xyz}"
 CACHE_POSTFIX=$(date +%s%N | md5sum | head -c 8)
 
@@ -111,8 +111,14 @@ if [ "$MYSQL_READY" = "0" ]; then
 fi
 
 # Generate admin password hash (md5 — no $ chars, safe for shell interpolation)
-ADMIN_PASS_HASH=$(echo -n "${ADMIN_PASS}" | md5sum | cut -d' ' -f1)
-echo "[entrypoint] Admin user: ${ADMIN_USER}"
+if [ -n "${ADMIN_PASS}" ]; then
+    ADMIN_PASS_HASH=$(echo -n "${ADMIN_PASS}" | md5sum | cut -d' ' -f1)
+    echo "[entrypoint] Admin user: ${ADMIN_USER}"
+else
+    ADMIN_PASS_HASH=""
+    echo "[entrypoint] WARNING: ADMIN_PASS not set — admin credentials will not be configured."
+    echo "[entrypoint]          Set ADMIN_PASS environment variable in Coolify to enable admin login."
+fi
 
 # Helper function to run SQL files
 run_sql_file() {
@@ -190,7 +196,7 @@ fi
 # ---------------------------------------------------------------------------
 # Ensure admin credentials are correct (repairs broken placeholder imports)
 # ---------------------------------------------------------------------------
-if [ "$MYSQL_READY" = "1" ]; then
+if [ "$MYSQL_READY" = "1" ] && [ -n "${ADMIN_PASS_HASH}" ]; then
     echo "[entrypoint] Ensuring admin account is configured ..."
     mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" -e "
         UPDATE \`${DB_PREFIX}admins\`

@@ -109,7 +109,7 @@ run_sql_file() {
     local desc="$2"
     if [ -f "$file" ]; then
         echo "[entrypoint] Importing ${desc} ..."
-        sed "s/{db_prefix}/${DB_PREFIX}/g" "$file" | \
+        { echo "SET sql_mode='NO_ENGINE_SUBSTITUTION';"; sed "s/{db_prefix}/${DB_PREFIX}/g" "$file"; } | \
             mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" 2>&1 || \
             echo "[entrypoint] WARNING: ${desc} had errors (may be expected for optional data)"
     else

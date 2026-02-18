@@ -1,0 +1,267 @@
+div.gallery {
+  max-width: 300px;
+  flex: 0 0 300px; }
+  @media screen and (max-width: 991px) {
+    div.gallery {
+      max-width: 360px;
+      flex: 0 0 360px; } }
+  @media screen and (max-width: 767px) {
+    div.gallery {
+      max-width: 100%;
+      flex: 0 0 100%; } }
+  div.gallery > #media {
+    padding-bottom: 86%;
+    position: relative;
+    border: 1px #e1e1e1 solid; }
+    @media screen and (max-width: 767px) {
+      div.gallery > #media {
+        border: 0;
+        display: none; }
+        div.gallery > #media[data-view=gallery] .preview {
+          display: none; } }
+    div.gallery > #media iframe,
+    div.gallery > #media #player,
+    div.gallery > #media .map-container,
+    div.gallery > #media .picture_locked,
+    div.gallery > #media img.default-picture {
+      width: 100%;
+      height: 100%;
+      display: none;
+      position: absolute;
+      background: transparent;
+      border-radius: 0; }
+    div.gallery > #media .preview {
+      width: 100%;
+      height: 100%; }
+      div.gallery > #media .preview.video iframe {
+        display: block; }
+      div.gallery > #media .preview.video img {
+        display: none; }
+      div.gallery > #media .preview.local #player {
+        display: block; }
+      div.gallery > #media .preview.local img {
+        display: none; }
+      div.gallery > #media .preview.locked > * {
+        display: none; }
+      div.gallery > #media .preview.locked .picture_locked {
+        display: block; }
+      div.gallery > #media .preview.locked + .nav-buttons .nav-button.zoom {
+        display: none; }
+      div.gallery > #media .preview.picture .picture_locked p.picture-hint,
+      div.gallery > #media .preview.fake-video .picture_locked p.video-hint {
+        display: block; }
+    div.gallery > #media img.default-picture {
+      background-position: center center;
+      background-repeat: no-repeat;
+      background-size: contain;
+      cursor: pointer;
+      object-fit: contain;
+      display: block; }
+    div.gallery > #media[data-view=gallery] .nav-button.gallery {
+      display: none; }
+    @media screen and (min-width: 768px) {
+      div.gallery > #media[data-view=gallery] .preview:not(.locked) + .map-container + .nav-buttons .nav-button.zoom {
+        display: inline-flex; } }
+    div.gallery > #media[data-view=map] > *:not(.nav-buttons) {
+      display: none; }
+    div.gallery > #media[data-view=map] .map-container {
+      display: block; }
+    div.gallery > #media[data-view=map] .nav-button.map {
+      display: none; }
+    div.gallery > #media[data-view]:not([data-view=gallery]) + div.thumbs {
+      display: none; }
+  div.gallery > div.thumbs {
+    background: #e2e2e2;
+    position: relative;
+    padding: 0; }
+    @media screen and (max-width: 767px) {
+      div.gallery > div.thumbs {
+        display: block;
+        height: auto;
+        width: 100%;
+        top: 0;
+        padding: 0; } }
+    div.gallery > div.thumbs span.play {
+      width: calc(100% - 4px);
+      height: calc(100% - 4px);
+      position: absolute;
+      background: url("../../img/play.svg") center center no-repeat rgba(0, 0, 0, 0.2);
+      margin: 2px;
+      left: 0;
+      top: 0;
+      background-size: contain; }
+    div.gallery > div.thumbs .f-carousel {
+      --f-carousel-spacing: 0;
+      margin-bottom: 0; }
+    div.gallery > div.thumbs .f-carousel__viewport {
+      overflow: hidden;
+      margin: 0 30px;
+      padding: 0;
+      width: auto; }
+      @media screen and (max-width: 767px) {
+        div.gallery > div.thumbs .f-carousel__viewport {
+          margin: 0;
+          padding: 0;
+          background: #e2e2e2; } }
+    div.gallery > div.thumbs .f-button {
+      --f-button-width: 30px;
+      --f-button-height: 56px;
+      --f-button-color: #111111;
+      --f-button-border-radius: 0;
+      --f-button-shadow: none;
+      --f-button-svg-width: 50%;
+      --f-button-svg-height: 50%;
+      background: transparent;
+      border-radius: 0;
+      top: 0 !important;
+      transform: none !important; }
+      div.gallery > div.thumbs .f-button:hover {
+        background: transparent;
+        color: #111111; }
+      @media screen and (max-width: 767px) {
+        div.gallery > div.thumbs .f-button {
+          height: 100%;
+          width: 30px;
+          background: transparent;
+          box-shadow: none; }
+          div.gallery > div.thumbs .f-button:hover {
+            background: transparent; } }
+      div.gallery > div.thumbs .f-button.is-prev {
+        right: 0 !important; }
+      div.gallery > div.thumbs .f-button.is-next {
+        left: 0 !important; }
+      @media screen and (max-width: 767px) {
+        div.gallery > div.thumbs .f-button > svg {
+          width: 80%;
+          height: 80%;
+          color: white;
+          filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.6)); } }
+    div.gallery > div.thumbs .f-carousel__slide {
+      padding: 0;
+      flex: 0 0 60px;
+      width: 60px;
+      height: 60px;
+      margin-right: 0;
+      position: relative;
+      overflow: unset;
+      background: #e2e2e2;
+      border-radius: 0; }
+      @media screen and (max-width: 767px) {
+        div.gallery > div.thumbs .f-carousel__slide {
+          position: relative;
+          padding-bottom: 66%;
+          flex: 0 0 90%;
+          width: 90%; } }
+      div.gallery > div.thumbs .f-carousel__slide img,
+      div.gallery > div.thumbs .f-carousel__slide video {
+        width: 100%;
+        height: 100%;
+        border: 1px #e9e9e9 solid;
+        border-radius: 0;
+        cursor: pointer;
+        object-fit: cover;
+        box-shadow: none; }
+        @media screen and (max-width: 767px) {
+          div.gallery > div.thumbs .f-carousel__slide img,
+          div.gallery > div.thumbs .f-carousel__slide video {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            box-shadow: none !important;
+            border-radius: 0; } }
+      div.gallery > div.thumbs .f-carousel__slide.active img,
+      div.gallery > div.thumbs .f-carousel__slide.active video {
+        border-color: #222222;
+        box-shadow: none; }
+      div.gallery > div.thumbs .f-carousel__slide.locked img {
+        background-color: #eeeeee;
+        background-image: url("../../img/lock.svg");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: auto; }
+        @media screen and (max-width: 767px) {
+          div.gallery > div.thumbs .f-carousel__slide.locked img {
+            background-size: auto 50%; } }
+  div.gallery .nav-buttons {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: 10px;
+    padding: 0 10px; }
+    @media screen and (max-width: 767px) {
+      div.gallery .nav-buttons {
+        top: 100%; } }
+    div.gallery .nav-buttons .map-group {
+      margin-right: auto;
+      z-index: 99; }
+      @media screen and (max-width: 767px) {
+        div.gallery .nav-buttons .map-group {
+          margin-right: unset;
+          display: flex;
+          width: 100%;
+          justify-content: center; } }
+    div.gallery .nav-buttons .nav-button {
+      margin: 0 1px;
+      height: 38px;
+      padding: 0 12px;
+      color: white;
+      background: rgba(55, 55, 55, 0.6);
+      font-weight: inherit;
+      font-size: 0.929em;
+      border-radius: 0;
+      cursor: pointer;
+      user-select: none;
+      text-transform: unset;
+      display: inline-flex;
+      align-items: center; }
+      div.gallery .nav-buttons .nav-button:hover {
+        color: white;
+        background: #111111; }
+      div.gallery .nav-buttons .nav-button.zoom {
+        display: none; }
+  div.gallery span.img-loading {
+    display: inline-block;
+    background: url("../../img/img_loader.gif") center center no-repeat #444444;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 2px;
+    width: calc(100% - 4px);
+    height: calc(100% - 4px);
+    opacity: 0.5; }
+
+.listing-fit-contain .f-carousel__slide img {
+  object-fit: contain !important; }
+
+.picture_locked {
+  height: 100%;
+  background-color: #eeeeee; }
+  .picture_locked > div {
+    height: 100%;
+    display: flex; }
+    .picture_locked > div > div {
+      width: 100%;
+      align-self: center; }
+
+.restricted-content img.locked-media {
+  width: 96px;
+  height: 142px;
+  background: url("../../img/lock.svg") center center no-repeat;
+  text-align: center;
+  margin-bottom: 20px;
+  background-size: cover; }
+
+.f-carousel__track .f-carousel__slide.has-video:after {
+  content: '';
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  background: url("../../img/play.svg") center center no-repeat;
+  background-size: cover; }
+
+.f-carousel__track .f-carousel__slide.has-html5video .fancybox__thumb {
+  background-size: contain; }

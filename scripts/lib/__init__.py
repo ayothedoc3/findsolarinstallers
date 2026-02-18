@@ -1,0 +1,1 @@
+# Solar Directory Pipeline Library

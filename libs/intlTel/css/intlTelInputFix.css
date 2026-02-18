@@ -1,0 +1,14 @@
+.iti__flag.iti__globe {
+    filter: invert(1);
+}
+.iti__search-input {
+    padding-left: 30px !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+:root {
+    --iti-dropdown-bg: var(--content-background-color, #f9f9f9);
+    --iti-border-color: var(--form-field-line-color, #cccccc);
+    --iti-border-width: 2px;
+}

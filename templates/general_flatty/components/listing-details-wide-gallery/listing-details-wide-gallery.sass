@@ -1,0 +1,98 @@
+@import "../../css/sass/variables"
+@import "../../css/sass/media"
+
+div.wide-gallery
+    padding: 0 0 45px
+    overflow: hidden
+    position: relative
+    z-index: 1
+
+    .f-carousel
+        margin-bottom: 0
+
+    .f-carousel__viewport
+        overflow: hidden
+        direction: ltr
+        margin: 0
+        padding: 0
+        background: $wide-gallery-bg
+
+    .f-carousel__dots
+        display: none
+
+    .f-carousel__button
+        display: none
+
+    .f-carousel__slide
+        padding: 0
+        width: auto
+        height: 68vh
+        position: relative
+        overflow: unset
+        margin: 0
+        border: $wide-gallery-slide-border-width $wide-gallery-slide-border-color solid
+
+        +respond-to(mobile)
+            height: 65vh
+
+        img
+            height: 100%
+            border: 0
+            cursor: pointer
+            object-fit: contain
+
+            +respond-to(mobile)
+                max-width: 95vw
+
+        &.video-slide:not(.locked)
+            img
+                height: 100%
+
+            iframe,
+            video,
+            .youtube-wrapper
+                position: absolute
+                width: 100%
+                height: 100%
+                max-width: 100vw
+                top: 0
+                left: 0
+
+            &:before,
+            &:after
+                content: ''
+                position: absolute
+                left: 0
+                top: 0
+                bottom: 20%
+                width: calc(50% - 50px)
+                z-index: 1000
+
+            &:after
+                left: auto
+                right: 0
+
+    .picture_locked
+        width: 100%
+        height: 100%
+        background-color: $wide-gallery-locked-slide-bg
+        position: absolute
+        top: 0
+        left: 0
+
+        > div
+            height: 100%
+            display: flex
+
+            > div
+                width: 100%
+                align-self: center
+
+                img
+                    width: 96px
+                    height: 142px
+                    background: url('../../img/lock.svg') center center no-repeat
+                    text-align: center
+                    margin-bottom: 20px
+                    background-size: cover
+                    filter: $wide-gallery-lock-icon-filter

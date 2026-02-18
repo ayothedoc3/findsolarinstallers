@@ -1,0 +1,325 @@
+@import "../../css/sass/variables"
+@import "../../css/sass/media"
+
+div.gallery
+    max-width: $gallery-desktop-width
+    flex: 0 0 $gallery-desktop-width
+
+    +respond-to(tablet)
+        max-width: $gallery-tablet-width
+        flex: 0 0 $gallery-tablet-width
+
+    +respond-to(mobile)
+        @if $gallery-nav
+            padding-bottom: $gallery-nav-button-height + 10
+
+        max-width: 100%
+        flex: 0 0 100%
+
+    > #media
+        padding-bottom: $gallery-aspect-ratio
+        position: relative
+        border: $gallery-media-border
+
+        +respond-to(mobile)
+            border: $gallery-mobile-media-border
+
+            @if not $gallery-nav
+                display: none
+
+            &[data-view=gallery] .preview
+                display: none
+
+        iframe,
+        #player,
+        .map-container,
+        .picture_locked,
+        img.default-picture
+            width: 100%
+            height: 100%
+            display: none
+            position: absolute
+            background: $gallery-bg
+            border-radius: $gallery-media-border-radius
+        
+        .preview
+            width: 100%
+            height: 100%
+
+            &.video
+                iframe
+                    display: block
+
+                img
+                    display: none
+
+            &.local
+                #player
+                    display: block
+
+                img
+                    display: none
+
+            &.locked
+                > *
+                    display: none
+
+                .picture_locked
+                    display: block
+
+                + .nav-buttons .nav-button.zoom
+                    display: none
+
+            &.picture .picture_locked p.picture-hint,
+            &.fake-video .picture_locked p.video-hint
+                display: block
+
+        img.default-picture
+            background-position: center center
+            background-repeat: no-repeat
+            background-size: contain
+            cursor: pointer
+            object-fit: contain
+            display: block
+
+        &[data-view=gallery]
+            .nav-button.gallery
+                display: none
+
+            +respond-to(tablet_and_desktop)
+                .preview:not(.locked)
+                    + .map-container + .nav-buttons .nav-button.zoom
+                        display: inline-flex
+
+        &[data-view=map]
+            > *:not(.nav-buttons)
+                display: none
+
+            .map-container
+                display: block
+
+            .nav-button.map
+                display: none
+
+        &[data-view]:not([data-view=gallery])
+            + div.thumbs
+                display: none
+
+    > div.thumbs
+        background: $gallery-thumbs-bg
+        position: relative
+        padding: $gallery-thumbs-padding
+
+        +respond-to(mobile)
+            @if $gallery-nav
+                position: absolute
+
+            display: block
+            height: auto
+            width: 100%
+            top: 0
+            padding: 0
+
+        span.play
+            width: calc(100% - 4px)
+            height: calc(100% - 4px)
+            position: absolute
+            background: url('../../img/play.svg') center center no-repeat rgba(0,0,0,.2)
+            margin: 2px
+            left: 0
+            top: 0
+            background-size: contain
+
+        .f-carousel
+            --f-carousel-spacing: #{$gallery-carousel-slide-margin}
+            margin-bottom: 0
+
+        .f-carousel__viewport
+            overflow: hidden
+            margin: 0 $gallery-carousel-nav-width
+            padding: $gallery-carousel-slides-container-padding
+            width: auto
+
+            +respond-to(mobile)
+                margin: 0
+                padding: 0
+                background: $gallery-thumbs-mobile-bg
+
+        .f-button
+            --f-button-width: #{$gallery-carousel-nav-width}
+            --f-button-height: #{$gallery-carousel-nav-height}
+            --f-button-color: #{$gallery-carousel-nav-color}
+            --f-button-border-radius: #{$gallery-carousel-nav-border-radius}
+            --f-button-shadow: #{$gallery-carousel-nav-box-shadow}
+            --f-button-svg-width: #{$gallery-carousel-nav-svg-width}
+            --f-button-svg-height: #{$gallery-carousel-nav-svg-height}
+            background: $gallery-carousel-nav-bg
+            border-radius: $gallery-carousel-nav-border-radius
+            top: 0 !important
+            transform: none !important
+
+            &:hover
+                background: $gallery-carousel-nav-hover-bg
+                color: $gallery-carousel-nav-hover-color
+
+            +respond-to(mobile)
+                height: 100%
+                width: $gallery-carousel-nav-mobile-width
+                background: transparent
+                box-shadow: none
+
+                &:hover
+                    background: transparent
+
+            &.is-prev
+                #{$left}: 0 !important
+
+            &.is-next
+                #{$right}: 0 !important
+
+            > svg
+                +respond-to(mobile)
+                    width: $gallery-carousel-nav-svg-mobile-width
+                    height: $gallery-carousel-nav-svg-mobile-height
+                    color: white
+                    filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.6))
+
+        .f-carousel__slide
+            padding: 0
+            flex: 0 0 $gallery-carousel-slide-width
+            width: $gallery-carousel-slide-width
+            height: $gallery-carousel-slide-height
+            margin-right: $gallery-carousel-slide-margin
+            position: relative
+            overflow: unset
+            background: $gallery-carousel-slide-bg
+            border-radius: $gallery-carousel-slide-border-radius
+
+            +respond-to(mobile)
+                position: relative
+                padding-bottom: 66%
+                flex: 0 0 90%
+                width: 90%
+
+            img,
+            video
+                width: 100%
+                height: 100%
+                border: $gallery-carousel-slide-img-border
+                border-radius: $gallery-carousel-slide-border-radius
+                cursor: pointer
+                object-fit: cover
+                box-shadow: $gallery-carousel-slide-img-box-shadow
+
+                +respond-to(mobile)
+                    position: absolute
+                    width: 100%
+                    height: 100%
+                    border: 0
+                    box-shadow: none !important
+                    border-radius: 0
+
+            &.active img,
+            &.active video
+                border-color: $gallery-carousel-slide-active-img-border-color
+                box-shadow: $gallery-carousel-slide-active-img-box-shadow
+
+            &.locked img
+                background-color: #eeeeee
+                background-image: url('../../img/lock.svg')
+                background-repeat: no-repeat
+                background-position: center center
+                background-size: auto
+
+                +respond-to(mobile)
+                    background-size: auto 50%
+
+    .nav-buttons
+        position: absolute
+        top: 0
+        left: 0
+        display: flex
+        justify-content: $gallery-nav-justify-content
+        width: 100%
+        margin-top: $gallery-nav-margin-top
+        padding: $gallery-nav-padding
+
+        +respond-to(mobile)
+            top: 100%
+
+        .map-group
+            margin-#{$left}: $gallery-map-group-margin
+            z-index: 99
+
+            +respond-to(mobile)
+                margin-#{$left}: unset
+                display: flex
+                width: 100%
+                justify-content: center
+
+        .nav-button
+            margin: $gallery-nav-button-margin
+            height: $gallery-nav-button-height
+            padding: $gallery-nav-button-padding
+            color: $gallery-nav-button-color
+            background: $gallery-nav-button-bg
+            font-weight: $gallery-nav-button-font-weight
+            font-size: $gallery-nav-button-font-size
+            border-radius: $gallery-nav-button-border-radius
+            cursor: pointer
+            user-select: none
+            text-transform: $gallery-nav-button-text-transform
+            display: inline-flex
+            align-items: center
+
+            &:hover
+                color: $gallery-nav-button-hover-color
+                background: $gallery-nav-button-hover-background
+
+            &.zoom
+                display: none
+
+    span.img-loading
+        display: inline-block
+        background: url('../../img/img_loader.gif') center center no-repeat #444444
+        position: absolute
+        top: 0
+        left: 0
+        margin: 2px
+        width: calc(100% - 4px)
+        height: calc(100% - 4px)
+        opacity: 0.5
+
+.listing-fit-contain .f-carousel__slide img
+    object-fit: contain !important
+
+.picture_locked
+    height: 100%
+    background-color: #eeeeee
+
+    > div
+        height: 100%
+        display: flex
+
+        > div
+            width: 100%
+            align-self: center
+
+.restricted-content img.locked-media
+    width: 96px
+    height: 142px
+    background: url('../../img/lock.svg') center center no-repeat
+    text-align: center
+    margin-bottom: 20px
+    background-size: cover
+
+.f-carousel__track .f-carousel__slide.has-video:after
+    content: ''
+    position: absolute
+    width: 64px
+    height: 64px
+    background: url('../../img/play.svg') center center no-repeat
+    background-size: cover
+
+.f-carousel__track .f-carousel__slide.has-html5video .fancybox__thumb
+    background-size: contain

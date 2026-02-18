@@ -1,0 +1,63 @@
+# =============================================================================
+# Solar Directory - Docker Compose for Coolify
+# =============================================================================
+# Coolify will pick this up automatically. Set environment variables in
+# Coolify's UI under your service settings.
+# =============================================================================
+
+services:
+  app:
+    build: .
+    ports:
+      - "80:80"
+    environment:
+      # Database (Coolify sets these automatically if you add a MySQL service)
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-solar_user}
+      - DB_PASS=${DB_PASS:-}
+      - DB_NAME=${DB_NAME:-solarlisting}
+      - DB_PREFIX=${DB_PREFIX:-fl_}
+      # Site
+      - SITE_URL=${SITE_URL:-https://findsolarinstallers.xyz}
+      - ADMIN_DIR=${ADMIN_DIR:-admin}
+      # Pipeline
+      - OUTSCRAPER_API_KEY=${OUTSCRAPER_API_KEY:-}
+      - MONTHLY_CREDIT_BUDGET=${MONTHLY_CREDIT_BUDGET:-10000}
+      - WEEKLY_REGION_COUNT=${WEEKLY_REGION_COUNT:-5}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+    volumes:
+      - app_files:/var/www/html/files
+      - app_tmp:/var/www/html/tmp
+      - pipeline_data:/var/www/html/scripts/data
+      - pipeline_logs:/var/www/html/scripts/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=${DB_NAME:-solarlisting}
+      - MYSQL_USER=${DB_USER:-solar_user}
+      - MYSQL_PASSWORD=${DB_PASS:-}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./install/mysql:/docker-entrypoint-initdb.d/sql
+      - ./deploy/mysql-init.sh:/docker-entrypoint-initdb.d/000-init.sh
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  app_files:
+  app_tmp:
+  pipeline_data:
+  pipeline_logs:

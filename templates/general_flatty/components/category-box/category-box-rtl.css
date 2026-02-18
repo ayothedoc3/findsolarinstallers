@@ -1,0 +1,134 @@
+:root .categories-box {
+  --carousel-slide-width: 100%; }
+
+@media screen and (min-width: 992px) {
+  body:not(.no-sidebar) .categories-box__style_column_fill .categories-box__slide {
+    column-count: 4; } }
+
+@media screen and (min-width: 992px) and (max-width: 1199px) {
+  body:not(.no-sidebar) .categories-box__style_column_fill .categories-box__slide {
+    column-count: 3; } }
+
+.categories-box__style_column_fill .categories-box__slide {
+  column-count: 5;
+  column-gap: 30px;
+  flex: 0 0 auto; }
+  @media screen and (max-width: 1199px) {
+    .categories-box__style_column_fill .categories-box__slide {
+      column-count: 4; } }
+  @media screen and (max-width: 991px) {
+    .categories-box__style_column_fill .categories-box__slide {
+      column-count: 3; } }
+  @media screen and (max-width: 767px) {
+    .categories-box__style_column_fill .categories-box__slide {
+      column-count: 2; } }
+  @media screen and (max-width: 543px) {
+    .categories-box__style_column_fill .categories-box__slide {
+      column-count: unset;
+      column-gap: unset; } }
+
+@media not screen and (min-width: 768px) and (max-width: 991px) {
+  .categories-box__style_sidebar .categories-box__slide {
+    column-count: unset !important; }
+  .categories-box__style_sidebar .categories-box__item {
+    padding-top: unset !important;
+    border: unset !important; }
+  .categories-box__style_sidebar .categories-box__subcategories {
+    display: none;
+    margin-top: 0 !important; }
+  .categories-box__style_sidebar a.categories-box__parent-link {
+    font-size: initial !important;
+    font-weight: initial !important;
+    text-transform: none !important;
+    letter-spacing: initial !important; } }
+
+@media not screen and (min-width: 768px) and (max-width: 991px) {
+  .categories-box__style_grid.categories-box__style_sidebar .categories-box__item {
+    flex-basis: auto;
+    width: 100%; } }
+
+.categories-box__style_grid.categories-box__style_middle .categories-box__slide {
+  column-count: unset !important; }
+
+.categories-box__style_grid.categories-box__style_middle .categories-box__item {
+  flex-basis: auto;
+  width: 100%;
+  padding-top: unset !important;
+  border: unset !important; }
+
+.categories-box__style_grid.categories-box__style_middle .categories-box__subcategories {
+  display: none;
+  margin-top: 0 !important; }
+
+.categories-box__style_grid.categories-box__style_middle a.categories-box__parent-link {
+  font-size: initial !important;
+  font-weight: initial !important;
+  text-transform: none !important;
+  letter-spacing: initial !important; }
+
+.categories-box__item_empty a.categories-box__parent-link,
+.categories-box__item_empty .categories-box__parent-counter,
+.categories-box__item_empty .categories-box__subcategories a:not(.button) {
+  color: #adadad !important; }
+
+@media not screen and (min-width: 768px) and (max-width: 991px) {
+  .categories-box__item_opened .categories-box__subcategories {
+    padding-right: 36px;
+    display: block !important; } }
+
+.categories-box__subcategory {
+  padding-bottom: 6px; }
+  .categories-box__subcategory a.categories-box__subcategory-link {
+    color: #313131; }
+
+.categories-box__subcategory-link {
+  text-overflow: ellipsis;
+  overflow: hidden; }
+
+.categories-box__more-subcategories {
+  color: black;
+  font-size: 0.929em;
+  cursor: pointer;
+  user-select: none; }
+
+.categories-box__parent-link {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; }
+  .categories-box__parent-link_active {
+    border-bottom: 1px dotted;
+    border-radius: 1px; }
+  .categories-box__parent-link-wrapper {
+    padding-right: 26px; }
+
+.categories-box__parent-counter {
+  color: #888888 !important;
+  font-size: 1.143em !important; }
+
+.categories-box_subcategory-exists a.categories-box__parent-link {
+  color: #0ead76;
+  font-size: 1.25em;
+  font-weight: initial; }
+
+.categories-box__plus {
+  width: 18px;
+  height: 18px;
+  padding: 4px;
+  cursor: pointer;
+  flex: 1 0 auto;
+  border-radius: 50%;
+  fill: #2dba89 !important; }
+  .categories-box__plus:hover {
+    background: rgba(0, 134, 88, 0.1);
+    transition: background 0.3s ease; }
+
+.categories-box__arrow {
+  width: 8px;
+  height: 10px;
+  transform: scale(-1); }
+
+.categories-box__scrollbar {
+  max-height: 312px; }
+
+.categories-box-nav > div {
+  overflow: auto; }

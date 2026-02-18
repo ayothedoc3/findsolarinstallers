@@ -1,0 +1,176 @@
+@import "../../css/sass/variables"
+@import "../../css/sass/media"
+
+div.gallery
+    +respond-to(mobile)
+        max-width: 100%
+        flex: 0 0 100%
+
+    > div.thumbs
+        +respond-to(mobile)
+            display: block
+            height: auto
+            width: 100%
+            top: 0
+            padding: 0
+
+        span.play
+            width: calc(100% - 4px)
+            height: calc(100% - 4px)
+            position: absolute
+            background: url('../../img/play.svg') center center no-repeat rgba(0,0,0,.2)
+            margin: 2px
+            background-size: contain
+            cursor: pointer
+
+            +respond-to(tablet_and_desktop)
+                border-radius: $fancyapps-gallery-slide-border-radius - 1
+
+        .f-carousel__viewport
+            +respond-to(mobile)
+                margin: 0
+                padding: 0
+                background-color: $fancyapps-gallery-thumbs-mobile-bg
+
+        .f-carousel__track
+            +respond-to(tablet_and_desktop)
+                margin-left: -($fancyapps-gallery-slide-padding / 2)
+                margin-right: -($fancyapps-gallery-slide-padding / 2)
+
+                > *:first-of-type
+                    max-width: 100%
+                    flex-basis: 100%
+
+        .f-button
+            --f-button-svg-width: 80%
+            --f-button-svg-height: 80%
+
+            +respond-to(mobile)
+                height: 100%
+                width: $fancyapps-gallery-carousel-nav-mobile-width
+                background: transparent
+
+                &:hover
+                    background: transparent
+
+            &.is-prev
+                #{$left}: 15px !important
+
+            &.is-next
+                #{$right}: 15px !important
+
+            > svg
+                +respond-to(mobile)
+                    width: $fancyapps-gallery-carousel-nav-svg-mobile-width
+                    height: $fancyapps-gallery-carousel-nav-svg-mobile-height
+                    color: white
+                    filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.6))
+
+        .f-carousel__slide
+            padding: 0
+            flex: 0 0 $fancyapps-gallery-slide-width
+            width: $fancyapps-gallery-slide-width
+            overflow: unset
+
+            +respond-to(mobile)
+                flex: 0 0 90%
+                width: 90%
+                margin: 0
+
+            +respond-to(tablet_and_desktop)
+                &:nth-child(n+#{$fancyapps-gallery-visible-slide+1})
+                    display: none
+
+                &:nth-child(#{$fancyapps-gallery-visible-slide})
+                    > .f-carousel__wrapper
+                        span
+                            display: none
+
+                        &:after
+                            content: attr(data-rest-text)
+                            width: calc(100% - 4px)
+                            height: calc(100% - 4px)
+                            margin: 2px
+                            position: absolute
+                            background: $fancyapps-gallery-slide-more-bg
+                            display: flex
+                            justify-content: center
+                            align-items: center
+                            text-align: center
+                            font-size: $fancyapps-gallery-slide-more-font-size
+                            cursor: pointer
+                            color: $fancyapps-gallery-slide-more-font-color
+
+            img,
+            video
+                position: absolute
+                width: 100%
+                height: 100%
+                cursor: pointer
+                object-fit: cover
+                background: $fancyapps-gallery-slide-bg
+
+                +respond-to(tablet_and_desktop)
+                    border: $fancyapps-gallery-slide-border
+                    border-radius: $fancyapps-gallery-slide-border-radius
+
+                +respond-to(mobile)
+                    border: 0
+
+            &.locked
+                img
+                    background-color: #eeeeee
+                    background-image: url('../../img/lock.svg')
+                    background-repeat: no-repeat
+                    background-position: center center
+                    background-size: auto
+
+                    +respond-to(mobile)
+                        background-size: auto 50%
+
+        .f-carousel__wrapper
+            position: relative
+            padding-bottom: $fancyapps-gallery-slide-aspect-ratio
+
+            +respond-to(tablet_and_desktop)
+                margin-bottom: $fancyapps-gallery-slide-padding
+                margin-left: ($fancyapps-gallery-slide-padding / 2)
+                margin-right: ($fancyapps-gallery-slide-padding / 2)
+
+    .has-dots
+        margin-bottom: 0
+
+.listing-fit-contain .f-carousel__slide img
+    object-fit: contain !important
+
+.picture_locked
+    height: 100%
+    background-color: #eeeeee
+
+    > div
+        height: 100%
+        display: flex
+
+        > div
+            width: 100%
+            align-self: center
+
+.restricted-content img.locked-media
+    width: 96px
+    height: 142px
+    background: url('../../img/lock.svg') center center no-repeat
+    text-align: center
+    margin-bottom: 20px
+    background-size: cover
+    filter: $fancyapps-gallery-lock-icon-filter
+
+.f-carousel__track .f-carousel__slide.has-video:after
+    content: ''
+    position: absolute
+    width: 64px
+    height: 64px
+    background: url('../../img/play.svg') center center no-repeat
+    background-size: cover
+
+.f-carousel__track .f-carousel__slide.has-html5video .fancybox__thumb
+    background-size: contain

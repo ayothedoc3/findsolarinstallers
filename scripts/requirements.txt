@@ -1,0 +1,9 @@
+pandas>=2.0.0
+crawl4ai>=0.2.0
+aiohttp>=3.9.0
+geopy>=2.4.0
+tqdm>=4.65.0
+phonenumbers>=8.13.0
+outscraper>=3.0.0
+python-dotenv>=1.0.0
+mysql-connector-python>=8.0.0

@@ -1,0 +1,14 @@
+section.listing-details-stat .counters > li {
+  padding: 5px 0;
+  min-height: 26px;
+  line-height: 26px;
+  font-size: 0.929em; }
+  section.listing-details-stat .counters > li span.count {
+    font-size: 1.714em;
+    margin-left: 5px; }
+
+section.listing-details-stat .controls > li {
+  padding: 7px 0 12px;
+  min-height: 20px; }
+  section.listing-details-stat .controls > li .name {
+    color: #222222; }

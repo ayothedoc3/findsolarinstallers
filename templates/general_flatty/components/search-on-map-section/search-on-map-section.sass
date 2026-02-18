@@ -1,0 +1,55 @@
+@import "../../../template_core/css/sass/variables"
+@import "../../../template_core/css/sass/mixins"
+@import "../../../template_core/css/sass/media"
+
+.search-map-section
+    +respond-to(desktop_only)
+        padding-bottom: 60%
+
+    &__cont
+        position: absolute
+        height: 100%
+        left: 0
+        top: 0
+        background: #f1f1f1
+        border-radius: $alt-box-radius
+
+        +respond-to(tablet)
+            position: relative
+            height: 80vh
+            border-radius: 20px 20px 0 0
+
+    .search-map-area
+        max-width: 300px
+        max-height: calc(100% - 40px)
+        overflow-y: auto
+        background: var(--middle-no-sidebar-background-color)
+        border-radius: $alt-box-radius
+        z-index: 1
+        top: 20px
+        #{$left}: 20px
+        position: absolute
+        padding: 20px
+        box-shadow: 0 2px 5px 1px rgba(0,0,0, .2)
+
+        +respond-to(tablet)
+            max-width: 100%
+            position: static
+            border-radius: 0 0 20px 20px
+
+        ul.tabs
+            margin-bottom: 10px
+
+            > li
+                margin: 0 8px
+
+                &:first-of-type
+                    margin-#{$left}: 0
+
+        .search-block-content
+            form
+                div.search-form-cell
+                    width: 100%
+
+                    &.submit > div > span
+                        display: none

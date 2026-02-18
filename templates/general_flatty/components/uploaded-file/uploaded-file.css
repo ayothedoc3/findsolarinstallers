@@ -1,0 +1,7 @@
+.uploaded-file {
+  width: 80px;
+  line-height: initial; }
+  .uploaded-file__ext {
+    height: 80px;
+    border-width: 1px;
+    border-style: solid; }

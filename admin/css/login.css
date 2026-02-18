@@ -1,0 +1,87 @@
+/* login css */
+body, html {
+    height: 100%;
+}
+body {
+    background: #eaeaea;
+    margin: 0;
+    font-family: Arial;
+}
+#height {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+#login_block {
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    background: linear-gradient(180deg, #c2bfbf 0%, #c9c9c9 100%);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px #fbfbfb;
+    border: 1px #b4b4b4 solid;
+}
+.logo {
+    margin-bottom: 20px;
+}
+.wrapper {
+    padding: 30px 40px 40px;
+}
+.wrapper * {
+    box-sizing: border-box;
+}
+#login_footer {
+    border-top: 1px #d2d2d2 solid;
+    margin: 0 40px 0;
+    padding: 20px 0;
+    text-align: center;
+    color: #878686;
+    font-size: 11px;
+    height: 14px;
+    margin-top: -55px;
+}
+#login_footer a:link,
+#login_footer a:visited {
+    color: #777777;
+    font-size: 11px;
+    text-decoration: underline;
+}
+#login_footer a:hover,
+#login_footer a:active  {
+    text-decoration: none;
+}
+.red {
+    color: #B63636;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+div.error {
+    margin-bottom: 10px;
+    color: #3d3d3d;
+    font-size: 13px;
+    border: 1px #f18c8c solid;
+    box-shadow: 0px 1px 0px white;
+    border-radius: 5px;
+    margin-right: 20px;
+    text-align: left;
+}
+div.error > div {
+    padding: 10px 30px 12px 40px;
+    border-radius: 4px;
+    position: relative;
+    background: #f9cece;
+    border-top: 1px #fff7f7 solid;
+}
+div.error div.icon {
+    width: 21px;
+    height: 20px;
+    background: url('../img/side_bar.png') -120px -656px no-repeat;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    margin: -10px 0 0 10px;
+}
+/* login css end */

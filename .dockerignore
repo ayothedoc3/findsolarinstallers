@@ -1,0 +1,14 @@
+.git
+.gitignore
+*.md
+data/
+scripts/data/
+scripts/logs/
+scripts/venv/
+scripts/.env
+deploy/deploy-config.env
+tmp/compile/*
+tmp/aCompile/*
+tmp/cache*
+tmp/errorLog/*
+tmp/upload/*

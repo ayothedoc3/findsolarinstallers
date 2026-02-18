@@ -1,0 +1,44 @@
+@media screen and (min-width: 992px) {
+  .search-map-section {
+    padding-bottom: 60%; } }
+
+.search-map-section__cont {
+  position: absolute;
+  height: 100%;
+  left: 0;
+  top: 0;
+  background: #f1f1f1;
+  border-radius: 0; }
+  @media screen and (max-width: 991px) {
+    .search-map-section__cont {
+      position: relative;
+      height: 80vh;
+      border-radius: 20px 20px 0 0; } }
+
+.search-map-section .search-map-area {
+  max-width: 300px;
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  background: var(--middle-no-sidebar-background-color);
+  border-radius: 0;
+  z-index: 1;
+  top: 20px;
+  right: 20px;
+  position: absolute;
+  padding: 20px;
+  box-shadow: 0 2px 5px 1px rgba(0, 0, 0, 0.2); }
+  @media screen and (max-width: 991px) {
+    .search-map-section .search-map-area {
+      max-width: 100%;
+      position: static;
+      border-radius: 0 0 20px 20px; } }
+  .search-map-section .search-map-area ul.tabs {
+    margin-bottom: 10px; }
+    .search-map-section .search-map-area ul.tabs > li {
+      margin: 0 8px; }
+      .search-map-section .search-map-area ul.tabs > li:first-of-type {
+        margin-right: 0; }
+  .search-map-section .search-map-area .search-block-content form div.search-form-cell {
+    width: 100%; }
+    .search-map-section .search-map-area .search-block-content form div.search-form-cell.submit > div > span {
+      display: none; }

@@ -1,0 +1,181 @@
+@import "../../css/sass/variables"
+@import "../../css/sass/media"
+
+\:root
+    .categories-box
+        --carousel-slide-width: 100%
+
+body:not(.no-sidebar) .categories-box__style_column_fill .categories-box__slide
+    +respond-to(desktop_only)
+        column-count: $category-box-xl-column-count - 1
+
+    +respond-to(desktop_sm_only)
+        column-count: $category-box-lg-column-count - 1
+
+.categories-box
+    &__style_column_fill
+        .categories-box__slide
+            +respond-to(desktop_sm)
+                column-count: $category-box-lg-column-count
+
+            +respond-to(tablet)
+                column-count: $category-box-md-column-count
+
+            +respond-to(mobile)
+                column-count: $category-box-sm-column-count
+
+            +respond-to(mobile_xs)
+                column-count: unset
+                column-gap: unset
+
+            column-count: $category-box-xl-column-count
+            column-gap: $category-box-column-gap
+            flex: 0 0 auto
+
+    &__style_sidebar
+        +respond-to(not_tablet)
+            .categories-box__slide
+                column-count: unset !important
+
+            .categories-box__item
+                padding-top: unset !important
+                border: unset !important
+
+            .categories-box__subcategories
+                display: none
+                margin-top: 0 !important
+
+            a.categories-box__parent-link
+                font-size: initial !important
+                font-weight: initial !important
+                text-transform: none !important
+                letter-spacing: initial !important
+
+    +respond-to(not_tablet)
+        &__style_grid.categories-box__style_sidebar
+            .categories-box__item
+                flex-basis: auto
+                width: 100%
+
+    &__style_grid.categories-box__style_middle
+        .categories-box__slide
+            column-count: unset !important
+
+        .categories-box__item
+            flex-basis: auto
+            width: 100%
+            padding-top: unset !important
+            border: unset !important
+
+        .categories-box__subcategories
+            display: none
+            margin-top: 0 !important
+
+        a.categories-box__parent-link
+            font-size: initial !important
+            font-weight: initial !important
+            text-transform: none !important
+            letter-spacing: initial !important
+
+    &__item
+        &_empty
+            a.categories-box__parent-link,
+            .categories-box__parent-counter,
+            .categories-box__subcategories a:not(.button)
+                color: $category-box-empty-color !important
+
+        +respond-to(not_tablet)
+            &_opened
+                .categories-box__subcategories
+                    padding-#{$left}: 36px
+                    display: block !important
+
+    &__subcategories
+        @if $category-box-subcategories-mt > 0
+            margin-top: $category-box-subcategories-mt
+
+    &__subcategory
+        padding-bottom: $category-box-subcategory-pb
+
+        @if $category-box-subcategory-link-color != 'initial'
+            a.categories-box__subcategory-link
+                color: $category-box-subcategory-link-color
+
+    &__subcategory-link
+        text-overflow: ellipsis
+        overflow: hidden
+
+    &__more-subcategories
+        color: $category-box-more-link-color
+        font-size: $category-box-more-link-font-size
+        cursor: pointer
+        user-select: none
+
+    &__parent
+        &-link
+            overflow: hidden
+            text-overflow: ellipsis
+            white-space: nowrap
+            @if $category-box-parent-link-no-sc-font-size != 'initial'
+                font-size: $category-box-parent-link-no-sc-font-size !important
+            @if $category-box-parent-link-no-sc-color != 'initial'
+                color: $category-box-parent-link-no-sc-color !important
+
+            &_active
+                border-bottom: 1px dotted
+                border-radius: 1px
+
+            &-wrapper
+                padding-#{$left}: 26px
+
+        &-counter
+            color: $category-box-parent-counter-color !important
+            font-size: $category-box-parent-counter-font-size !important
+
+    &_subcategory-exists
+        @if $category-box-item-border-top != 'unset'
+            &.categories-box__style_column_fill .categories-box__item:not(:first-of-type)
+                border-top: $category-box-item-border-top
+                padding-top: $category-box-item-padding-top
+
+        a.categories-box__parent-link
+            color: $category-box-parent-link-color
+            font-size: $category-box-parent-link-font-size
+            @if $category-box-parent-link-text-transform != 'none'
+                text-transform: $category-box-parent-link-text-transform
+            @if $category-box-parent-link-font-weight != '400'
+                font-weight: $category-box-parent-link-font-weight
+            @if $category-box-parent-link-letter-spacing > 0
+                letter-spacing: $category-box-parent-link-letter-spacing
+            @if $category-box-parent-link-text-decoration != 'none'
+                text-decoration: $category-box-parent-link-text-decoration
+
+    &__plus
+        width: 18px
+        height: 18px
+        padding: 4px
+        cursor: pointer
+        flex: 1 0 auto
+        border-radius: 50%
+        @if $category_box-plus-icon-fill != 'initial'
+            fill: $category_box-plus-icon-fill !important
+
+        &:hover
+            background: rgba($color-main, 0.1)
+            transition: background 0.3s ease
+
+    &__arrow
+        width: 8px
+        height: 10px
+        @if not $is-ltr
+            transform: scale(-1)
+
+    &__scrollbar
+        max-height: 312px
+
+    @if $color-fancyapps-dot != 'initial'
+        .f-carousel__dot
+            --f-carousel-dot-color: #{$color-fancyapps-dot}
+
+.categories-box-nav > div
+    overflow: auto

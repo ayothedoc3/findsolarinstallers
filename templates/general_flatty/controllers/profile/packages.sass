@@ -1,0 +1,62 @@
+@import "../../css/sass/variables"
+@import "../../css/sass/media"
+
+.packages
+    .overdue,
+    .expired
+        color: $package-status-expired-color
+
+    .active
+        color: $package-status-active-color
+
+    +respond-to(mobile)
+        div.table-cell > div.name
+            width: 50% !important
+
+.package
+    &__frame
+        width: $package-frame-width
+        border: $package-border-width $package-border-color solid
+        padding: $package-padding
+        border-radius: $package-border-radius
+
+        +respond-to(mobile)
+            width: auto
+
+        div.table-cell.small
+            white-space: nowrap
+
+            & > div.name
+                white-space: normal
+                flex-basis: auto !important
+                max-width: none
+
+    &__stats
+        div.table-cell
+            & > div.name
+                max-width: none
+                width: auto
+
+            & > div.value
+                word-wrap: normal
+
+    &__name
+        color: $package-name-color
+        font-size: $package-name-font-size
+        font-weight: $package-name-font-weight
+        white-space: nowrap
+        overflow: hidden
+        text-overflow: ellipsis
+
+    &__price
+        color: var(--body-font-color)
+        font-size: $package-price-font-size
+        font-weight: $package-price-font-weight
+
+    &__listing-info
+        div.table-cell.small > div.name
+            width: $package-listing-info-name-width
+
+    +respond-to(mobile)
+        &__stats
+            padding: $package-padding

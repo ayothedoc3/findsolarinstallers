@@ -1,0 +1,58 @@
+.svg-icon-row {
+    display: inline-block;
+    background: #f5f7f0;
+    border: 1px #d7dcc9 solid;
+    padding: 10px;
+    border-radius: 3px;
+    margin: 5px 0 10px;
+}
+.svg-icon-row img.img-preview {
+    width: 36px;
+    height: 36px;
+    vertical-align: middle;
+    margin: 0 20px;
+}
+.svg-icon-row img + a + span.icon-reset-cont {
+    display: inline-block;
+}
+#icons-manager-grid {
+    margin: 20px 0 10px 0;
+    height: 340px;
+    overflow: auto;
+}
+#icons-manager-grid > div {
+    display: flex;
+    flex-wrap: wrap;
+}
+.icons-manager-grid-icon {
+    padding: 14px;
+    margin: 2px;
+    float: left;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.icons-manager-grid-icon:hover {
+    background: #f0f0f0;
+}
+.icons-manager-grid-icon.icon-active {
+    background: #d7dcc9;
+}
+.icons-manager-grid-icon img {
+    width: 36px;
+    height: 36px;
+}
+.icons-manager-controls {
+    text-align: right;
+}
+.icons-manager-next {
+    text-align: center;
+}
+.icons-manager-next.invisible {
+    visibility: hidden;
+}
+.icons-manager-next input {
+    margin-top: 0;
+}
+.icons-manager-controls .cancel {
+    padding-right: 15px !important;
+}

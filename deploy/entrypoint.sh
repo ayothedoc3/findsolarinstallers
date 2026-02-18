@@ -19,6 +19,9 @@ DB_PREFIX="${DB_PREFIX:-fl_}"
 MYSQL_OPTS="--skip-ssl"
 SITE_URL="${SITE_URL:-https://findsolarinstallers.xyz}"
 ADMIN_DIR="${ADMIN_DIR:-admin}"
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-SolarAdmin2026!}"
+ADMIN_EMAIL_ADDR="${ADMIN_EMAIL:-admin@findsolarinstallers.xyz}"
 CACHE_POSTFIX=$(date +%s%N | md5sum | head -c 8)
 
 echo "[entrypoint] Generating config.inc.php ..."
@@ -107,13 +110,22 @@ if [ "$MYSQL_READY" = "0" ]; then
     echo "[entrypoint] ERROR: MySQL did not become ready in time. Starting Apache anyway."
 fi
 
+# Generate admin password hash (bcrypt via PHP)
+ADMIN_PASS_HASH=$(php -r "echo password_hash('${ADMIN_PASS}', PASSWORD_DEFAULT, ['cost' => 12]);")
+echo "[entrypoint] Admin user: ${ADMIN_USER}"
+
 # Helper function to run SQL files
 run_sql_file() {
     local file="$1"
     local desc="$2"
     if [ -f "$file" ]; then
         echo "[entrypoint] Importing ${desc} ..."
-        { echo "SET sql_mode='NO_ENGINE_SUBSTITUTION';"; sed "s/{db_prefix}/${DB_PREFIX}/g" "$file"; } | \
+        { echo "SET sql_mode='NO_ENGINE_SUBSTITUTION';"; \
+          sed -e "s/{db_prefix}/${DB_PREFIX}/g" \
+              -e "s/{admin_user}/${ADMIN_USER}/g" \
+              -e "s/{admin_email}/${ADMIN_EMAIL_ADDR}/g" \
+              -e "s|{admin_password}|${ADMIN_PASS_HASH}|g" \
+              "$file"; } | \
             mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" 2>&1 || \
             echo "[entrypoint] WARNING: ${desc} had errors (may be expected for optional data)"
     else
@@ -173,6 +185,29 @@ if [ "$MYSQL_READY" = "1" ]; then
             run_sql_file "${SQL_DIR}/pipeline_tables.sql" "pipeline_tables.sql (automation tables)"
         fi
     fi
+fi
+
+# ---------------------------------------------------------------------------
+# Ensure admin credentials are correct (repairs broken placeholder imports)
+# ---------------------------------------------------------------------------
+if [ "$MYSQL_READY" = "1" ]; then
+    echo "[entrypoint] Ensuring admin account is configured ..."
+    mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" -e "
+        UPDATE \`${DB_PREFIX}admins\`
+        SET \`User\` = '${ADMIN_USER}',
+            \`Pass\` = '${ADMIN_PASS_HASH}',
+            \`Email\` = '${ADMIN_EMAIL_ADDR}'
+        WHERE \`ID\` = 1;
+    " 2>&1 && echo "[entrypoint] Admin account updated." || echo "[entrypoint] WARNING: Could not update admin account."
+
+    # Also fix the front-end admin account in fl_accounts
+    mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" -e "
+        UPDATE \`${DB_PREFIX}accounts\`
+        SET \`Username\` = '${ADMIN_USER}',
+            \`Password\` = '${ADMIN_PASS_HASH}',
+            \`Mail\` = '${ADMIN_EMAIL_ADDR}'
+        WHERE \`ID\` = 1;
+    " 2>&1 || true
 fi
 
 # Start cron daemon in background

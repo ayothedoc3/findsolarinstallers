@@ -68,9 +68,20 @@ PHPEOF
 
 echo "[entrypoint] Config written."
 
-# Create cache directory with postfix
+# ---------------------------------------------------------------------------
+# Clear ALL caches to ensure fresh templates, config, and lang keys
+# ---------------------------------------------------------------------------
+echo "[entrypoint] Clearing Smarty compile cache and old data caches ..."
+rm -rf /var/www/html/tmp/compile/* 2>/dev/null || true
+rm -rf /var/www/html/tmp/aCompile/* 2>/dev/null || true
+rm -rf /var/www/html/tmp/cache_* 2>/dev/null || true
+rm -rf /var/www/html/tmp/cache 2>/dev/null || true
+
+# Create fresh cache directory with postfix
 mkdir -p "/var/www/html/tmp/cache_${CACHE_POSTFIX}"
 chown -R www-data:www-data "/var/www/html/tmp/cache_${CACHE_POSTFIX}"
+mkdir -p /var/www/html/tmp/compile /var/www/html/tmp/aCompile
+chown -R www-data:www-data /var/www/html/tmp/compile /var/www/html/tmp/aCompile
 
 # Write pipeline .env from Docker environment variables
 ENV_FILE="/var/www/html/scripts/.env"

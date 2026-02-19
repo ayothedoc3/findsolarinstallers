@@ -63,7 +63,7 @@
 
 </head>
 
-<body class="large {$pageInfo.Key|replace:'_':'-'}-page{if !$side_bar_exists} no-sidebar{/if}{if $bread_crumbs_exists} bc-exists{/if}{if $config.header_banner_space && $pageInfo.Key != 'search_on_map'} header-banner{/if}{if $pageInfo.Controller == 'listing_details' && $blocks.get_more_details} get-details-box{/if}{if $config.general_simple_color != 'green'} {$config.general_simple_color}-theme{/if}{if !$config.img_crop_thumbnail} listing-fit-contain{/if}{if $pageInfo.Controller == 'static'} static-page{/if}" {if $smarty.const.RL_LANG_DIR == 'rtl'}dir="rtl"{/if}>
+<body class="large {$pageInfo.Key|replace:'_':'-'}-page{if !$side_bar_exists} no-sidebar{/if}{if $bread_crumbs_exists} bc-exists{/if}{if $pageInfo.Controller == 'listing_details' && $blocks.get_more_details} get-details-box{/if}{if $config.general_simple_color != 'green'} {$config.general_simple_color}-theme{/if}{if !$config.img_crop_thumbnail} listing-fit-contain{/if}{if $pageInfo.Controller == 'static'} static-page{/if}" {if $smarty.const.RL_LANG_DIR == 'rtl'}dir="rtl"{/if}>
 
 {rlHook name='tplBodyTop'}
 

@@ -26,8 +26,8 @@
             <!-- long top blocks area -->
 
             <div class="row{if $pageInfo.Controller == 'listing_details' || $pageInfo.Controller == 'home'} flex-row-reverse{/if}">
-                <!-- sidebar area -->
-                {if $blocks.left && $pageInfo.Controller != 'listing_details' && $pageInfo.Key != 'search_on_map'}
+                <!-- sidebar area - hidden on homepage -->
+                {if $blocks.left && $pageInfo.Controller != 'listing_details' && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                     <aside class="left col-lg-{if $pageInfo.Controller == 'listing_details' || !$blocks.left}12{else}4{/if} col-sm-12">
                         {strip}
                         {foreach from=$blocks item='block'}
@@ -41,7 +41,7 @@
                 <!-- sidebar area end -->
 
                 <!-- content area -->
-                <section id="content" class="col-lg-{if $pageInfo.Controller == 'listing_details' || !$blocks.left || $pageInfo.Key == 'search_on_map'}12{else}8{/if} col-sm-12">
+                <section id="content" class="col-lg-{if $pageInfo.Controller == 'listing_details' || !$blocks.left || $pageInfo.Key == 'search_on_map' || $pageInfo.Controller == 'home'}12{else}8{/if} col-sm-12">
                     {if $pageInfo.Key != 'home' && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'listing_details' && !$no_h1}
                         <div class="h1-nav d-flex mb-4">
                             <h1 class="flex-fill{if ($pageInfo.Key == 'login' || $pageInfo.Login) && !$isLogin} text-center{/if}">{if $pageInfo.h1}{$pageInfo.h1}{else}{$pageInfo.name}{/if}</h1>
@@ -58,29 +58,6 @@
                                 </nav>
                             {/if}
                         </div>
-                    {/if}
-
-                    {if $pageInfo.Key == 'home'}
-                        {assign var='alphabet_array' value=','|explode:$lang.alphabet_characters}
-                        {assign var='reduce' value=0}
-                        {if 'All'|in_array:$alphabet_array}
-                            {assign var='reduce' value=1}
-                        {/if}
-                        {math assign='char_width' equation='round(100/(count-reduce), 3, 1)' count=$alphabet_array|@count reduce=$reduce}
-
-                        {if $config.category_alphabet_box}
-                            <div class="category-alphabet">
-                                <ul>
-                                    {foreach from=$alphabet_array item='character'}{strip}
-                                    {if $character|@mb_strlen:'utf-8' == 1}
-                                        <li style="width: {$char_width}%;"><span>{$character}</span></li>
-                                    {/if}
-                                    {/strip}{/foreach}<li style="width: {$char_width}%;"><span>#</span></li>
-                                </ul>
-
-                                <div class="hide" id="cat_alphabet_cont"><div class="loading hide">{$lang.loading}</div></div>
-                            </div>
-                        {/if}
                     {/if}
 
                     <div id="system_message">

@@ -1,15 +1,5 @@
 {include file='head.tpl'}
 
-    {if $config.header_banner_space && $pageInfo.Key != 'search_on_map'}
-        <div class="header-banner-cont w-100 pt-2 pb-2">
-            <div class="point1">
-                <div id="header-banner">
-                    {include file='blocks'|cat:$smarty.const.RL_DS|cat:'header_banner.tpl'}
-                </div>
-            </div>
-        </div>
-    {/if}
-
     <header>
         <section class="point1 d-flex align-items-center flex-wrap pl-3 pr-3 pl-md-0 pr-md-0">
             <div id="top-navigation" class="order-1 flex-fill flex-basis-0 d-flex">

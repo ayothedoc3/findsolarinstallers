@@ -6,7 +6,7 @@
 {$config.site_name}
 </title>
 
-<meta name="generator" content="Flynax Classifieds Software" />
+<meta name="generator" content="SolarListings Directory" />
 <meta http-equiv="Content-Type" content="text/html; charset={$config.encoding}" />
 <meta name="robots" content="noindex, follow">
 
@@ -236,7 +236,7 @@
 		{rlHook name='tplPrintPage'}
 
 		<div class="footer">
-			<span>&copy; {$smarty.now|date_format:'%Y'}, {$lang.powered_by} </span><a title="{$lang.powered_by} {$lang.copy_rights}" href="{$lang.flynax_url}">{$lang.copy_rights}</a>
+			<span>&copy; {$smarty.now|date_format:'%Y'} </span><a title="SolarListings" href="{$rlBase}">SolarListings</a>
 		</div>
 
 	</div>

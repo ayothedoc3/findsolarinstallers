@@ -257,6 +257,10 @@ if [ "$MYSQL_READY" = "1" ]; then
         UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = 'SolarListings' WHERE \`Key\` = 'copy_rights' AND \`Code\` = 'en';
         UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = '' WHERE \`Key\` = 'powered_by' AND \`Code\` = 'en';
         UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = '${SITE_URL}' WHERE \`Key\` = 'flynax_url' AND \`Code\` = 'en';
+
+        -- Remove remaining Flynax references from JS lang keys
+        UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = 'Unable to reach server.' WHERE \`Key\` = 'flynax_connect_fail' AND \`Code\` = 'en';
+        UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = REPLACE(\`Value\`, 'Flynax helpdesk', 'support') WHERE \`Key\` = 'system_error' AND \`Code\` = 'en';
     " 2>&1 && echo "[entrypoint] Branding settings applied." || echo "[entrypoint] WARNING: Could not apply branding settings."
 fi
 

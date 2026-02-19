@@ -1,7 +1,5 @@
 <!-- listing fields table - Solar Override -->
 
-{addCSS file=$rlBase|cat:'custom/templates/general_flatty/css/solar.css'}
-
 <div class="listing-fields solar-listing-fields">
 
 {* === Google Rating Display === *}

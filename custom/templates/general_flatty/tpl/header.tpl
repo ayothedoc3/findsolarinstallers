@@ -9,10 +9,17 @@
             </div>
 
             <div id="logo" class="mx-auto order-3 order-md-2 text-center mb-2 mb-md-0 flex-fill">
-                <a href="{$rlBase}" title="{$config.site_name}">
-                    <img alt="{$config.site_name}"
-                        src="{$rlTplBase}img/logo.png?rev={$config.static_files_revision}"
-                        srcset="{$rlTplBase}img/@2x/logo.png?rev={$config.static_files_revision} 2x" />
+                <a href="{$rlBase}" title="{$config.site_name}" class="solar-brand">
+                    <span class="solar-brand-mark" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"></path>
+                        </svg>
+                    </span>
+                    <span class="solar-brand-text">
+                        <span class="solar-brand-title">SolarListings</span>
+                        <span class="solar-brand-subtitle">Find Solar Installers</span>
+                    </span>
                 </a>
             </div>
 

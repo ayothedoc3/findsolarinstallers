@@ -8,11 +8,12 @@
 <meta name="generator" content="SolarListings Directory" />
 <meta charset="UTF-8" />
 <meta http-equiv="x-dns-prefetch-control" content="on" />
-<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="description" content="{$pageInfo.meta_description|strip_tags|escape}" />
 
 {includeFonts}
+{addCSS file=$rlBase|cat:'custom/templates/general_flatty/css/solar.css?rev='|cat:$config.static_files_revision}
 {displayCSS mode='header'}
 
 <link rel="shortcut icon" href="{$rlTplBase}img/favicon.ico?rev={$config.static_files_revision}" type="image/x-icon" />

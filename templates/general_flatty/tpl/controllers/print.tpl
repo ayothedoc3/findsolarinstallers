@@ -171,7 +171,7 @@
                          src="{staticMap location=$location.direct zoom=$config.map_default_zoom width=480 height=150}"
                          srcset="{staticMap location=$location.direct zoom=$config.map_default_zoom width=480 height=150 scale=2} 2x" />
 					<span class="media-enlarge"><span></span></span>
-				</section>
+				</div>
 			{/if}
 		{elseif $smarty.get.item == 'browse' || $smarty.get.item == 'search' || $smarty.get.item == 'listings' }
 			<table class="sTable">

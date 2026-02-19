@@ -2,14 +2,18 @@
 
 {rlHook name='homeTop'}
 
-{addCSS file=$rlBase|cat:'custom/templates/general_flatty/css/solar.css'}
-
 <!-- Hero Section -->
 <section class="solar-hero">
     <div class="solar-hero-overlay"></div>
     <div class="solar-hero-content">
         <h1>Find Trusted Solar Installers Near You</h1>
-        <p class="solar-hero-subtitle">Compare ratings, certifications, and services from thousands of solar companies across the US</p>
+        <p class="solar-hero-subtitle">Compare real ratings, certifications, and service specialties from vetted solar companies across the United States.</p>
+
+        <div class="solar-hero-badges">
+            <span>No spam leads</span>
+            <span>Free to compare</span>
+            <span>US-wide coverage</span>
+        </div>
 
         <!-- Search Form -->
         <form class="solar-search-form" method="post" action="{pageUrl key='search'}">
@@ -17,7 +21,7 @@
             <div class="solar-search-fields">
                 <div class="solar-search-field">
                     <label for="solar-location">{$lang.location|default:'Location'}</label>
-                    <input type="text" id="solar-location" name="f[keyword_search]" placeholder="City, State or ZIP code" />
+                    <input type="text" id="solar-location" name="f[keyword_search]" placeholder="City, State, ZIP, or installer name" />
                 </div>
                 <div class="solar-search-field">
                     <label for="solar-service">{$lang.services_offered|default:'Service Type'}</label>
@@ -26,7 +30,7 @@
                         <option value="1">Residential Solar</option>
                         <option value="2">Commercial Solar</option>
                         <option value="3">Battery Storage</option>
-                        <option value="4">EV Charger Installation</option>
+                        <option value="4">EV Charger + Solar</option>
                         <option value="5">Maintenance & Repair</option>
                         <option value="6">Pool/Water Heating</option>
                     </select>
@@ -143,42 +147,42 @@
     <div class="point1">
         <h2>Browse by Service</h2>
         <div class="solar-categories-grid">
-            <a href="{pageUrl key='lt_listings'}/residential-solar/" class="solar-category-card">
+            <a href="{categoryUrl id=2001}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 </div>
                 <h4>Residential Solar</h4>
                 <p>Home solar panel systems and rooftop installations</p>
             </a>
-            <a href="{pageUrl key='lt_listings'}/commercial-solar/" class="solar-category-card">
+            <a href="{categoryUrl id=2002}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
                 </div>
                 <h4>Commercial Solar</h4>
                 <p>Business and industrial solar energy solutions</p>
             </a>
-            <a href="{pageUrl key='lt_listings'}/solar-battery-storage/" class="solar-category-card">
+            <a href="{categoryUrl id=2004}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="4" width="12" height="18" rx="2"/><line x1="10" y1="1" x2="14" y2="1"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
                 </div>
                 <h4>Battery Storage</h4>
                 <p>Tesla Powerwall, Enphase, and backup battery systems</p>
             </a>
-            <a href="{pageUrl key='lt_listings'}/ev-charger-solar/" class="solar-category-card">
+            <a href="{categoryUrl id=2006}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
                 <h4>EV Charger + Solar</h4>
                 <p>Electric vehicle charging with solar integration</p>
             </a>
-            <a href="{pageUrl key='lt_listings'}/solar-maintenance/" class="solar-category-card">
+            <a href="{categoryUrl id=2003}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
                 </div>
                 <h4>Maintenance & Repair</h4>
                 <p>Solar panel cleaning, repair, and system monitoring</p>
             </a>
-            <a href="{pageUrl key='lt_listings'}/solar-pool-heating/" class="solar-category-card">
+            <a href="{categoryUrl id=2005}" class="solar-category-card">
                 <div class="solar-category-icon">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="M2 19c6.667-6 13.333 0 20-6"/></svg>
                 </div>

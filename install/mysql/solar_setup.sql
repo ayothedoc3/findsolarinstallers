@@ -530,7 +530,7 @@ WHERE `Key` = 'copy_rights' AND `Code` = 'en';
 
 -- Home page name in navigation
 UPDATE `{db_prefix}lang_keys`
-SET `Value` = 'SolarListings — Find Solar Installers Near You'
+SET `Value` = 'SolarListings - Find Solar Installers Near You'
 WHERE `Key` = 'pages+name+home' AND `Code` = 'en';
 
 -- Home page meta title

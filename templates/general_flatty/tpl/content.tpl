@@ -14,7 +14,7 @@
             {/if}
 
             <!-- long top blocks area -->
-            {if $blocks.long_top && $pageInfo.Key != 'search_on_map'}
+            {if $blocks.long_top && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                 <div class="ling_top_block">
                     {foreach from=$blocks item='block'}
                     {if $block.Side == 'long_top'}
@@ -103,7 +103,7 @@
                         <!-- no javascript mode end -->
                     </div>
 
-                    {if $blocks.top && $pageInfo.Key != 'search_on_map'}
+                    {if $blocks.top && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                     <!-- top blocks area -->
                     <aside class="top">
                         {foreach from=$blocks item='block'}
@@ -124,7 +124,7 @@
                     {/strip}</section>
 
                     <!-- middle blocks area -->
-                    {if $blocks.middle && $pageInfo.Controller != 'listing_details' && $pageInfo.Key != 'search_on_map'}
+                    {if $blocks.middle && $pageInfo.Controller != 'listing_details' && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                     <aside class="middle">
                         {foreach from=$blocks item='block'}
                             {if $block.Side == 'middle'}
@@ -135,7 +135,7 @@
                     {/if}
                     <!-- middle blocks area end -->
 
-                    {if ($blocks.middle_left || $blocks.middle_right) && $pageInfo.Key != 'search_on_map'}
+                    {if ($blocks.middle_left || $blocks.middle_right) && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                     <!-- middle blocks area -->
                     <aside class="two-middle row">
                         <div class="col-md-6 col-sm-6">
@@ -157,7 +157,7 @@
                     <!-- middle blocks area end -->
                     {/if}
 
-                    {if $blocks.bottom && $pageInfo.Key != 'search_on_map'}
+                    {if $blocks.bottom && $pageInfo.Key != 'search_on_map' && $pageInfo.Controller != 'home'}
                     <!-- bottom blocks area -->
                     <aside class="bottom">
                         {foreach from=$blocks item='block'}

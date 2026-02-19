@@ -216,6 +216,39 @@ if [ "$MYSQL_READY" = "1" ] && [ -n "${ADMIN_PASS_HASH}" ]; then
     " 2>&1 || true
 fi
 
+# ---------------------------------------------------------------------------
+# Branding cleanup — remove Flynax references from DB config
+# ---------------------------------------------------------------------------
+if [ "$MYSQL_READY" = "1" ]; then
+    echo "[entrypoint] Applying branding settings ..."
+    mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" ${MYSQL_OPTS} "${DB_NAME}" -e "
+        -- Disable header banner / ad space
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '0' WHERE \`Key\` = 'header_banner_space';
+
+        -- Disable alphabet box on homepage
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '0' WHERE \`Key\` = 'category_alphabet_box';
+
+        -- Disable homepage H1 (our custom hero handles it)
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '0' WHERE \`Key\` = 'home_page_h1';
+
+        -- Remove Flynax social media links
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'facebook_page';
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'twitter_page';
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'whatsapp_page';
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'telegram_page';
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'instagram_page';
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '' WHERE \`Key\` = 'vk_page';
+
+        -- Disable location detection popup
+        UPDATE \`${DB_PREFIX}config\` SET \`Default\` = '0' WHERE \`Key\` = 'ipgeo_request';
+
+        -- Update lang keys to remove Flynax branding
+        UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = 'SolarListings' WHERE \`Key\` = 'copy_rights' AND \`Code\` = 'en';
+        UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = '' WHERE \`Key\` = 'powered_by' AND \`Code\` = 'en';
+        UPDATE \`${DB_PREFIX}lang_keys\` SET \`Value\` = '${SITE_URL}' WHERE \`Key\` = 'flynax_url' AND \`Code\` = 'en';
+    " 2>&1 && echo "[entrypoint] Branding settings applied." || echo "[entrypoint] WARNING: Could not apply branding settings."
+fi
+
 # Start cron daemon in background
 echo "[entrypoint] Starting cron daemon ..."
 cron

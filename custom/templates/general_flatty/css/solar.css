@@ -687,3 +687,111 @@
 .item.featured .label div {
     background: var(--solar-accent);
 }
+
+/* ========== FLYNAX CLEANUP — HIDE UNWANTED ELEMENTS ========== */
+
+/* Hide header banner / ad space */
+.header-banner-cont,
+.home-page .header-banner-cont {
+    display: none !important;
+}
+
+/* Hide alphabet bar on homepage */
+.home-page .category-alphabet {
+    display: none !important;
+}
+
+/* Hide location detection popup */
+.location-request {
+    display: none !important;
+}
+
+/* Hide "Statistics are unavailable" on homepage */
+.home-page .statistics-unavailable,
+.home-page aside.left {
+    display: none !important;
+}
+
+/* Hide default Flynax category blocks on homepage */
+.home-page .categories-box {
+    display: none !important;
+}
+
+/* Hide Recently Added when empty */
+.home-page .recently-added-empty {
+    display: none !important;
+}
+
+/* ========== HEADER BRANDING ========== */
+
+/* Style the logo area - text fallback if no logo image */
+#logo img {
+    max-height: 45px;
+}
+
+/* Override the Classifieds text in nav */
+header .main-menu {
+    background: var(--solar-primary);
+}
+
+header .main-menu nav {
+    background: transparent;
+}
+
+header .main-menu .menu > li > a {
+    color: #fff;
+}
+
+header .main-menu .menu > li > a:hover,
+header .main-menu .menu > li.active > a {
+    color: var(--solar-accent-light);
+}
+
+/* ========== FOOTER CLEANUP ========== */
+
+footer .footer-cp {
+    color: var(--solar-gray-600);
+    font-size: 0.875rem;
+}
+
+footer .footer-cp a {
+    color: var(--solar-primary);
+    text-decoration: none;
+}
+
+footer .footer-cp a:hover {
+    color: var(--solar-primary-light);
+}
+
+/* Hide payment methods if not configured */
+.payment-methods-img[src*="blank.gif"] {
+    display: none;
+}
+
+/* ========== GENERAL UI POLISH ========== */
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better body background */
+body.home-page {
+    background-color: #fff;
+}
+
+/* Ensure full-width content on homepage */
+.home-page #content {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.home-page .inside-container {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Override the green angel-gradient on nav search */
+.kw-search.angel-gradient-light {
+    background: var(--solar-primary-dark) !important;
+}

@@ -3,6 +3,26 @@
 scripts/.env
 deploy/deploy-config.env
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+backend/venv/
+backend/.venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Database
+pgdata/
+
+# Pipeline runtime
+scripts/data/
+scripts/logs/
+scripts/venv/
+data/
+
 # Runtime directories
 tmp/compile/*
 tmp/aCompile/*
@@ -10,12 +30,6 @@ tmp/cache*
 tmp/errorLog/*
 tmp/upload/*
 !tmp/.gitkeep
-
-# Pipeline runtime
-scripts/data/
-scripts/logs/
-scripts/venv/
-data/
 
 # IDE & OS
 .vscode/
@@ -27,3 +41,6 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Playwright
+.playwright-mcp/

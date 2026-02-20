@@ -1,64 +1,84 @@
-# =============================================================================
-# Solar Directory - Docker Compose for Coolify
-# =============================================================================
-# Coolify will pick this up automatically. Set environment variables in
-# Coolify's UI under your service settings.
-# =============================================================================
-
 services:
-  app:
-    build: .
-    expose:
-      - "80"
-    environment:
-      # Database (Coolify sets these automatically if you add a MySQL service)
-      - DB_HOST=${DB_HOST:-mysql}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_USER=${DB_USER:-solar_user}
-      - DB_PASS=${DB_PASS:-}
-      - DB_NAME=${DB_NAME:-solarlisting}
-      - DB_PREFIX=${DB_PREFIX:-fl_}
-      # Site
-      - SITE_URL=${SITE_URL:-https://findsolarinstallers.xyz}
-      - ADMIN_DIR=${ADMIN_DIR:-admin}
-      # Admin credentials
-      - ADMIN_USER=${ADMIN_USER:-admin}
-      - ADMIN_PASS=${ADMIN_PASS:-}
-      # Pipeline
-      - OUTSCRAPER_API_KEY=${OUTSCRAPER_API_KEY:-}
-      - MONTHLY_CREDIT_BUDGET=${MONTHLY_CREDIT_BUDGET:-10000}
-      - WEEKLY_REGION_COUNT=${WEEKLY_REGION_COUNT:-5}
-      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
-    volumes:
-      - app_files:/var/www/html/files
-      - app_tmp:/var/www/html/tmp
-      - pipeline_data:/var/www/html/scripts/data
-      - pipeline_logs:/var/www/html/scripts/logs
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
     depends_on:
-      mysql:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8.0
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app beat --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:16-3.4
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${DB_NAME:-solarlisting}
-      - MYSQL_USER=${DB_USER:-solar_user}
-      - MYSQL_PASSWORD=${DB_PASS:-}
+      POSTGRES_USER: ${DB_USER:-solar_user}
+      POSTGRES_PASSWORD: ${DB_PASS:-Z7nmNDVHzTdhaUU9U9Li4w3U}
+      POSTGRES_DB: ${DB_NAME:-solarlisting}
     volumes:
-      - mysql_data:/var/lib/mysql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-solar_user} -d ${DB_NAME:-solarlisting}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
 volumes:
-  mysql_data:
-  app_files:
-  app_tmp:
-  pipeline_data:
-  pipeline_logs:
+  pgdata:
+  redisdata:

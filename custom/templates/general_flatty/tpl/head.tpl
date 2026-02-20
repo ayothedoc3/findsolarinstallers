@@ -13,7 +13,7 @@
 <meta name="description" content="{$pageInfo.meta_description|strip_tags|escape}" />
 
 {includeFonts}
-{addCSS file=$rlBase|cat:'custom/templates/general_flatty/css/solar.css?rev='|cat:$config.static_files_revision}
+{addCSS file=$rlTplBase|cat:'css/solar.css?rev='|cat:$config.static_files_revision}
 {displayCSS mode='header'}
 
 <link rel="shortcut icon" href="{$rlTplBase}img/favicon.ico?rev={$config.static_files_revision}" type="image/x-icon" />

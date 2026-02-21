@@ -11,7 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Fix Windows CRLF line endings and make start script executable
-RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
-
-CMD ["./start.sh"]
+CMD ["sh", "-c", "python seed.py || true && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]

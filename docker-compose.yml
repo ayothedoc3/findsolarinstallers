@@ -15,8 +15,16 @@ services:
       dockerfile: Dockerfile
     expose:
       - "8000"
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://solar_user:Z7nmNDVHzTdhaUU9U9Li4w3U@db:5432/solarlisting}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-changeme}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-changeme}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@findsolarinstallers.xyz}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-changeme}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - DEBUG=${DEBUG:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -29,8 +37,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: celery -A celery_app worker --loglevel=info --concurrency=2
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://solar_user:Z7nmNDVHzTdhaUU9U9Li4w3U@db:5432/solarlisting}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-changeme}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-changeme}
     depends_on:
       db:
         condition: service_healthy
@@ -43,8 +54,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     command: celery -A celery_app beat --loglevel=info
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://solar_user:Z7nmNDVHzTdhaUU9U9Li4w3U@db:5432/solarlisting}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - SECRET_KEY=${SECRET_KEY:-changeme}
     depends_on:
       - redis
     restart: unless-stopped

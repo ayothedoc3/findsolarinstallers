@@ -11,15 +11,20 @@ from app.utils.security import hash_password
 
 
 async def seed():
-    # Create tables
+    # Create tables (if not already created by app startup)
     async with engine.begin() as conn:
-        # Enable PostGIS
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as db:
+        # Check if already seeded
+        from sqlalchemy import select
+        existing = await db.execute(select(User).limit(1))
+        if existing.scalar_one_or_none():
+            print("Database already seeded, skipping.")
+            return
+
         # Create search trigger
         await db.execute(text("""
             CREATE OR REPLACE FUNCTION listings_search_trigger() RETURNS trigger AS $$

@@ -8,6 +8,15 @@ from app.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Auto-create tables on startup
+    from sqlalchemy import text
+    from app.database import engine, Base
+    # Import all models so they register with Base
+    from app.models import user, listing, category, plan, contact_request, api_key, site_setting, pipeline  # noqa: F401
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        await conn.run_sync(Base.metadata.create_all)
     yield
 
 

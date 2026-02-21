@@ -15,5 +15,6 @@ celery[redis]==5.4.0
 redis==5.1.1
 httpx==0.27.2
 python-dotenv==1.0.1
-outscraper==5.0.0
-crawl4ai==0.4.2
+# Pipeline deps (Phase 4) — install when pipeline is ported
+# outscraper==5.0.0
+# crawl4ai>=0.4.21

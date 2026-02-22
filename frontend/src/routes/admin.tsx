@@ -1,14 +1,15 @@
-import { createRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
+import { createRoute, Outlet, Link } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
-  LayoutDashboard, List, Users, Key, Workflow, Settings,
-  Plus, Trash2, Star, Eye, Pencil, Play, MapPin,
+  LayoutDashboard, List, Users, Key, Workflow, Settings, Tag, CreditCard,
+  Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save,
 } from "lucide-react";
 import { useState } from "react";
 
-// Admin layout route
+// ─── Admin layout ────────────────────────────────────────────────────────────
+
 export const adminLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/admin",
@@ -20,8 +21,11 @@ function AdminLayout() {
     { to: "/admin", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/admin/listings", icon: List, label: "Listings" },
     { to: "/admin/users", icon: Users, label: "Users" },
+    { to: "/admin/categories", icon: Tag, label: "Categories" },
+    { to: "/admin/plans", icon: CreditCard, label: "Plans" },
     { to: "/admin/api-keys", icon: Key, label: "API Keys" },
     { to: "/admin/pipeline", icon: Workflow, label: "Pipeline" },
+    { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 
   return (
@@ -53,7 +57,8 @@ function AdminLayout() {
   );
 }
 
-// Dashboard overview
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
 export const adminIndexRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/",
@@ -63,63 +68,508 @@ export const adminIndexRoute = createRoute({
 function AdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ["admin", "stats"],
-    queryFn: () => api.get<{ total_listings: number; total_states: number; total_reviews: number }>("/stats"),
+    queryFn: () =>
+      api.get<{
+        total_listings: number;
+        total_states: number;
+        total_reviews: number;
+        total_users: number;
+        total_leads: number;
+        recent_leads: number;
+      }>("/admin/stats"),
   });
+
+  const cards = [
+    { label: "Total Listings", value: stats?.total_listings },
+    { label: "States Covered", value: stats?.total_states },
+    { label: "Total Reviews", value: stats?.total_reviews?.toLocaleString() },
+    { label: "Users", value: stats?.total_users },
+    { label: "Total Leads", value: stats?.total_leads },
+    { label: "Leads (30d)", value: stats?.recent_leads },
+  ];
 
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Admin Dashboard</h1>
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="text-sm text-muted-foreground mb-1">Total Listings</div>
-          <div className="text-2xl font-bold font-heading">{stats?.total_listings ?? "..."}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="text-sm text-muted-foreground mb-1">States Covered</div>
-          <div className="text-2xl font-bold font-heading">{stats?.total_states ?? "..."}</div>
-        </div>
-        <div className="bg-white rounded-xl border border-border p-5">
-          <div className="text-sm text-muted-foreground mb-1">Total Reviews</div>
-          <div className="text-2xl font-bold font-heading">{stats?.total_reviews?.toLocaleString() ?? "..."}</div>
-        </div>
+        {cards.map((c) => (
+          <div key={c.label} className="bg-white rounded-xl border border-border p-5">
+            <div className="text-sm text-muted-foreground mb-1">{c.label}</div>
+            <div className="text-2xl font-bold font-heading">{c.value ?? "..."}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// API Keys (BYOK)
+// ─── Listings ────────────────────────────────────────────────────────────────
+
+export const adminListingsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/listings",
+  component: AdminListings,
+});
+
+function AdminListings() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const { data } = useQuery({
+    queryKey: ["admin", "listings", search, statusFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search) params.set("q", search);
+      if (statusFilter) params.set("status", statusFilter);
+      params.set("per_page", "50");
+      return api.get<{ items: any[]; total: number }>(`/admin/listings?${params}`);
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      api.put(`/admin/listings/${id}/status?status=${status}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "listings"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/listings/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "listings"] }),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">Manage Listings</h1>
+        <span className="text-sm text-muted-foreground">{data?.total ?? 0} total</span>
+      </div>
+
+      <div className="flex gap-3 mb-4">
+        <input
+          type="text"
+          placeholder="Search listings..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 px-3 py-2 rounded-lg border border-border bg-white text-sm"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-border bg-white text-sm"
+        >
+          <option value="">All Status</option>
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+          <option value="suspended">Suspended</option>
+          <option value="expired">Expired</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left px-4 py-3 font-medium">Name</th>
+              <th className="text-left px-4 py-3 font-medium">Location</th>
+              <th className="text-left px-4 py-3 font-medium">Rating</th>
+              <th className="text-left px-4 py-3 font-medium">Status</th>
+              <th className="text-right px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!data?.items?.length ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  No listings found.
+                </td>
+              </tr>
+            ) : (
+              data.items.map((l: any) => (
+                <tr key={l.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 font-medium">{l.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {[l.city, l.state].filter(Boolean).join(", ") || "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {l.google_rating ? (
+                      <span className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-accent text-accent" />
+                        {l.google_rating}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={l.status || "active"}
+                      onChange={(e) => statusMutation.mutate({ id: l.id, status: e.target.value })}
+                      className="px-2 py-1 rounded border border-border text-xs bg-white"
+                    >
+                      <option value="active">Active</option>
+                      <option value="pending">Pending</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="expired">Expired</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3 text-right flex justify-end gap-2">
+                    <a href={`/listing/${l.slug}`} className="text-muted-foreground hover:text-foreground p-1" title="View">
+                      <Eye className="w-4 h-4" />
+                    </a>
+                    <button
+                      onClick={() => { if (confirm("Delete this listing?")) deleteMutation.mutate(l.id); }}
+                      className="text-destructive hover:text-destructive/80 p-1" title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+export const adminUsersRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/users",
+  component: AdminUsers,
+});
+
+function AdminUsers() {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+
+  const { data } = useQuery({
+    queryKey: ["admin", "users", search],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (search) params.set("q", search);
+      params.set("per_page", "50");
+      return api.get<{ items: any[]; total: number }>(`/admin/users?${params}`);
+    },
+  });
+
+  const roleMutation = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: string }) =>
+      api.put(`/admin/users/${id}/role?role=${role}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id: number) => api.put(`/admin/users/${id}/toggle-active`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] }),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">Manage Users</h1>
+        <span className="text-sm text-muted-foreground">{data?.total ?? 0} total</span>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search by email or name..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg border border-border bg-white text-sm"
+        />
+      </div>
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left px-4 py-3 font-medium">Email</th>
+              <th className="text-left px-4 py-3 font-medium">Name</th>
+              <th className="text-left px-4 py-3 font-medium">Role</th>
+              <th className="text-left px-4 py-3 font-medium">Status</th>
+              <th className="text-right px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {!data?.items?.length ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No users found.</td>
+              </tr>
+            ) : (
+              data.items.map((u: any) => (
+                <tr key={u.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 font-medium">{u.email}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {[u.first_name, u.last_name].filter(Boolean).join(" ") || "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={u.role}
+                      onChange={(e) => roleMutation.mutate({ id: u.id, role: e.target.value })}
+                      className="px-2 py-1 rounded border border-border text-xs bg-white"
+                    >
+                      <option value="user">User</option>
+                      <option value="business_owner">Business Owner</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs ${u.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                      {u.is_active ? "Active" : "Disabled"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => toggleMutation.mutate(u.id)}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                      title={u.is_active ? "Disable user" : "Enable user"}
+                    >
+                      {u.is_active ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+export const adminCategoriesRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/categories",
+  component: AdminCategories,
+});
+
+function AdminCategories() {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState({ name: "", slug: "", parent_id: null as number | null, description: "", icon: "", sort_order: 0 });
+
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ["admin", "categories"],
+    queryFn: () => api.get("/admin/categories"),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: any) => api.post("/admin/categories", data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "categories"] }); resetForm(); },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => api.put(`/admin/categories/${id}`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "categories"] }); resetForm(); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/admin/categories/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "categories"] }),
+  });
+
+  function resetForm() {
+    setShowForm(false);
+    setEditId(null);
+    setForm({ name: "", slug: "", parent_id: null, description: "", icon: "", sort_order: 0 });
+  }
+
+  function startEdit(cat: any) {
+    setEditId(cat.id);
+    setForm({ name: cat.name, slug: cat.slug, parent_id: cat.parent_id, description: cat.description || "", icon: cat.icon || "", sort_order: cat.sort_order });
+    setShowForm(true);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">Categories</h1>
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-accent-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+          <Plus className="w-4 h-4" /> Add Category
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-white rounded-xl border border-border p-6 mb-6">
+          <h3 className="font-semibold mb-4">{editId ? "Edit Category" : "New Category"}</h3>
+          <form onSubmit={(e) => { e.preventDefault(); editId ? updateMutation.mutate({ id: editId, data: form }) : createMutation.mutate(form); }} className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <input type="text" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Slug</label>
+              <input type="text" value={form.slug} onChange={(e) => setForm((p) => ({ ...p, slug: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Icon (Lucide name)</label>
+              <input type="text" value={form.icon} onChange={(e) => setForm((p) => ({ ...p, icon: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Sort Order</label>
+              <input type="number" value={form.sort_order} onChange={(e) => setForm((p) => ({ ...p, sort_order: parseInt(e.target.value) || 0 }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" rows={2} />
+            </div>
+            <div className="sm:col-span-2 flex gap-3">
+              <button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2 rounded-lg transition-colors">{editId ? "Update" : "Create"}</button>
+              <button type="button" onClick={resetForm} className="text-sm text-muted-foreground hover:text-foreground px-4 py-2">Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left px-4 py-3 font-medium">Name</th>
+              <th className="text-left px-4 py-3 font-medium">Slug</th>
+              <th className="text-left px-4 py-3 font-medium">Icon</th>
+              <th className="text-left px-4 py-3 font-medium">Listings</th>
+              <th className="text-right px-4 py-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((cat: any) => (
+              <tr key={cat.id} className="border-b border-border last:border-0">
+                <td className="px-4 py-3 font-medium">
+                  {cat.parent_id ? <span className="text-muted-foreground mr-2">└</span> : null}
+                  {cat.name}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">{cat.slug}</td>
+                <td className="px-4 py-3 text-muted-foreground">{cat.icon || "—"}</td>
+                <td className="px-4 py-3">{cat.listing_count}</td>
+                <td className="px-4 py-3 text-right flex justify-end gap-2">
+                  <button onClick={() => startEdit(cat)} className="text-muted-foreground hover:text-foreground p-1" title="Edit">
+                    <Settings className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => { if (confirm("Delete this category?")) deleteMutation.mutate(cat.id); }} className="text-destructive hover:text-destructive/80 p-1" title="Delete">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── Plans ───────────────────────────────────────────────────────────────────
+
+export const adminPlansRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/plans",
+  component: AdminPlans,
+});
+
+function AdminPlans() {
+  const queryClient = useQueryClient();
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<any>({});
+
+  const { data: plans = [] } = useQuery<any[]>({
+    queryKey: ["admin", "plans"],
+    queryFn: () => api.get("/admin/plans"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => api.put(`/admin/plans/${id}`, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "plans"] }); setEditId(null); },
+  });
+
+  function startEdit(plan: any) {
+    setEditId(plan.id);
+    setEditData({ name: plan.name, price_cents: plan.price_cents, interval_days: plan.interval_days, max_images: plan.max_images, is_featured: plan.is_featured });
+  }
+
+  return (
+    <div>
+      <h1 className="font-heading text-2xl font-bold mb-6">Listing Plans</h1>
+      <div className="grid sm:grid-cols-3 gap-4">
+        {plans.map((plan: any) => (
+          <div key={plan.id} className="bg-white rounded-xl border border-border p-5">
+            {editId === plan.id ? (
+              <div className="space-y-3">
+                <input type="text" value={editData.name} onChange={(e) => setEditData((p: any) => ({ ...p, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-semibold" />
+                <div>
+                  <label className="text-xs text-muted-foreground">Price (cents)</label>
+                  <input type="number" value={editData.price_cents} onChange={(e) => setEditData((p: any) => ({ ...p, price_cents: parseInt(e.target.value) || 0 }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Duration (days)</label>
+                  <input type="number" value={editData.interval_days} onChange={(e) => setEditData((p: any) => ({ ...p, interval_days: parseInt(e.target.value) || 90 }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Max Images</label>
+                  <input type="number" value={editData.max_images} onChange={(e) => setEditData((p: any) => ({ ...p, max_images: parseInt(e.target.value) || 3 }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editData.is_featured} onChange={(e) => setEditData((p: any) => ({ ...p, is_featured: e.target.checked }))} />
+                  Featured
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={() => updateMutation.mutate({ id: plan.id, data: editData })} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">Save</button>
+                  <button onClick={() => setEditId(null)} className="text-sm text-muted-foreground hover:text-foreground px-3 py-2">Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-heading font-semibold text-lg">{plan.name}</h3>
+                  {plan.is_featured && <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs font-medium">Featured</span>}
+                </div>
+                <div className="text-3xl font-bold font-heading mb-1">${(plan.price_cents / 100).toFixed(2)}</div>
+                <div className="text-sm text-muted-foreground mb-4">{plan.interval_days} days</div>
+                <ul className="space-y-1.5 mb-4">
+                  {(plan.features || []).map((f: string, i: number) => (
+                    <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-xs text-muted-foreground mb-3">Max {plan.max_images} images</div>
+                <button onClick={() => startEdit(plan)} className="w-full text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-4 py-2 transition-colors">Edit Plan</button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── API Keys ────────────────────────────────────────────────────────────────
+
 export const adminApiKeysRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/api-keys",
   component: AdminApiKeys,
 });
 
-interface ApiKeyItem {
-  id: number;
-  name: string;
-  service: string;
-  is_active: boolean;
-  last_used_at: string | null;
-  created_at: string;
-}
-
 function AdminApiKeys() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", service: "outscraper", key: "" });
 
-  const { data: keys = [] } = useQuery<ApiKeyItem[]>({
+  const { data: keys = [] } = useQuery<any[]>({
     queryKey: ["admin", "api-keys"],
     queryFn: () => api.get("/admin/api-keys"),
   });
 
   const createMutation = useMutation({
     mutationFn: (data: typeof form) => api.post("/admin/api-keys", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] });
-      setShowForm(false);
-      setForm({ name: "", service: "outscraper", key: "" });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "api-keys"] }); setShowForm(false); setForm({ name: "", service: "outscraper", key: "" }); },
   });
 
   const deleteMutation = useMutation({
@@ -131,10 +581,7 @@ function AdminApiKeys() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">API Keys (BYOK)</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-accent-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-        >
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-accent-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
           <Plus className="w-4 h-4" /> Add Key
         </button>
       </div>
@@ -142,31 +589,14 @@ function AdminApiKeys() {
       {showForm && (
         <div className="bg-white rounded-xl border border-border p-6 mb-6">
           <h3 className="font-semibold mb-4">Add New API Key</h3>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              createMutation.mutate(form);
-            }}
-            className="grid sm:grid-cols-2 gap-4"
-          >
+          <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(form); }} className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g., Outscraper Production"
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-                required
-              />
+              <input type="text" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="e.g., Outscraper Production" className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" required />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Service</label>
-              <select
-                value={form.service}
-                onChange={(e) => setForm((p) => ({ ...p, service: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-              >
+              <select value={form.service} onChange={(e) => setForm((p) => ({ ...p, service: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm">
                 <option value="outscraper">Outscraper</option>
                 <option value="google_maps">Google Maps</option>
                 <option value="crawl4ai">Crawl4AI</option>
@@ -177,25 +607,12 @@ function AdminApiKeys() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium mb-1">API Key</label>
-              <input
-                type="password"
-                value={form.key}
-                onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))}
-                placeholder="Paste your API key..."
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono"
-                required
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Keys are encrypted with Fernet before storage. They are never exposed via the API.
-              </p>
+              <input type="password" value={form.key} onChange={(e) => setForm((p) => ({ ...p, key: e.target.value }))} placeholder="Paste your API key..." className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono" required />
+              <p className="text-xs text-muted-foreground mt-1">Keys are encrypted with Fernet before storage.</p>
             </div>
             <div className="sm:col-span-2 flex gap-3">
-              <button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2 rounded-lg transition-colors">
-                Save Key
-              </button>
-              <button type="button" onClick={() => setShowForm(false)} className="text-sm text-muted-foreground hover:text-foreground px-4 py-2">
-                Cancel
-              </button>
+              <button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2 rounded-lg transition-colors">Save Key</button>
+              <button type="button" onClick={() => setShowForm(false)} className="text-sm text-muted-foreground hover:text-foreground px-4 py-2">Cancel</button>
             </div>
           </form>
         </div>
@@ -214,36 +631,20 @@ function AdminApiKeys() {
           </thead>
           <tbody>
             {keys.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  No API keys configured. Add one to get started with pipeline automation.
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No API keys configured.</td></tr>
             ) : (
-              keys.map((key) => (
+              keys.map((key: any) => (
                 <tr key={key.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3 font-medium">{key.name}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">
-                      {key.service}
-                    </span>
-                  </td>
+                  <td className="px-4 py-3"><span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs">{key.service}</span></td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs ${key.is_active ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                       {key.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "Never"}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{key.last_used_at ? new Date(key.last_used_at).toLocaleDateString() : "Never"}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => deleteMutation.mutate(key.id)}
-                      className="text-destructive hover:text-destructive/80 p-1"
-                      title="Delete key"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => deleteMutation.mutate(key.id)} className="text-destructive hover:text-destructive/80 p-1" title="Delete"><Trash2 className="w-4 h-4" /></button>
                   </td>
                 </tr>
               ))
@@ -255,44 +656,24 @@ function AdminApiKeys() {
   );
 }
 
-// Pipeline Management
+// ─── Pipeline ────────────────────────────────────────────────────────────────
+
 export const adminPipelineRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/pipeline",
   component: AdminPipeline,
 });
 
-interface PipelineRun {
-  id: number;
-  mode: string;
-  status: string;
-  regions: string[] | null;
-  stats: Record<string, number> | null;
-  error_message: string | null;
-  started_at: string;
-  completed_at: string | null;
-}
-
-interface Region {
-  id: number;
-  state_code: string;
-  state_name: string;
-  priority: number;
-  enabled: boolean;
-  last_scraped_at: string | null;
-  listing_count: number;
-}
-
 function AdminPipeline() {
   const queryClient = useQueryClient();
   const [runMode, setRunMode] = useState("weekly");
 
-  const { data: runs = [] } = useQuery<PipelineRun[]>({
+  const { data: runs = [] } = useQuery<any[]>({
     queryKey: ["admin", "pipeline", "runs"],
     queryFn: () => api.get("/admin/pipeline/runs"),
   });
 
-  const { data: regions = [] } = useQuery<Region[]>({
+  const { data: regions = [] } = useQuery<any[]>({
     queryKey: ["admin", "pipeline", "regions"],
     queryFn: () => api.get("/admin/pipeline/regions"),
   });
@@ -306,36 +687,25 @@ function AdminPipeline() {
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Pipeline Management</h1>
 
-      {/* Trigger Panel */}
       <div className="bg-white rounded-xl border border-border p-6 mb-6">
         <h3 className="font-semibold mb-4">Run Pipeline</h3>
         <div className="flex items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Mode</label>
-            <select
-              value={runMode}
-              onChange={(e) => setRunMode(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
-            >
+            <select value={runMode} onChange={(e) => setRunMode(e.target.value)} className="px-3 py-2 rounded-lg border border-border bg-background text-sm">
               <option value="backfill">Backfill (All States)</option>
               <option value="weekly">Weekly (Rotation)</option>
               <option value="monthly">Monthly (Re-verify)</option>
             </select>
           </div>
-          <button
-            onClick={() => triggerMutation.mutate({ mode: runMode })}
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
-          >
+          <button onClick={() => triggerMutation.mutate({ mode: runMode })} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors">
             <Play className="w-4 h-4" /> Start Run
           </button>
         </div>
       </div>
 
-      {/* Recent Runs */}
       <div className="bg-white rounded-xl border border-border overflow-hidden mb-6">
-        <div className="px-4 py-3 border-b border-border">
-          <h3 className="font-semibold">Recent Runs</h3>
-        </div>
+        <div className="px-4 py-3 border-b border-border"><h3 className="font-semibold">Recent Runs</h3></div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
@@ -348,32 +718,19 @@ function AdminPipeline() {
           </thead>
           <tbody>
             {runs.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  No pipeline runs yet.
-                </td>
-              </tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No pipeline runs yet.</td></tr>
             ) : (
-              runs.slice(0, 10).map((run) => (
+              runs.slice(0, 10).map((run: any) => (
                 <tr key={run.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3">#{run.id}</td>
                   <td className="px-4 py-3 capitalize">{run.mode}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      run.status === "completed" ? "bg-green-50 text-green-700" :
-                      run.status === "running" ? "bg-blue-50 text-blue-700" :
-                      run.status === "failed" ? "bg-red-50 text-red-700" :
-                      "bg-gray-50 text-gray-700"
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs ${run.status === "completed" ? "bg-green-50 text-green-700" : run.status === "running" ? "bg-blue-50 text-blue-700" : run.status === "failed" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-700"}`}>
                       {run.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {run.regions?.join(", ") ?? "All"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(run.started_at).toLocaleString()}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{run.regions?.join(", ") ?? "All"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{new Date(run.started_at).toLocaleString()}</td>
                 </tr>
               ))
             )}
@@ -381,11 +738,8 @@ function AdminPipeline() {
         </table>
       </div>
 
-      {/* Region Schedule */}
       <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <h3 className="font-semibold">Region Schedule</h3>
-        </div>
+        <div className="px-4 py-3 border-b border-border"><h3 className="font-semibold">Region Schedule</h3></div>
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white">
@@ -398,7 +752,7 @@ function AdminPipeline() {
               </tr>
             </thead>
             <tbody>
-              {regions.map((region) => (
+              {regions.map((region: any) => (
                 <tr key={region.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3 font-medium">
                     <div className="flex items-center gap-2">
@@ -408,9 +762,7 @@ function AdminPipeline() {
                   </td>
                   <td className="px-4 py-3">{region.priority}/10</td>
                   <td className="px-4 py-3">{region.listing_count}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {region.last_scraped_at ? new Date(region.last_scraped_at).toLocaleDateString() : "Never"}
-                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{region.last_scraped_at ? new Date(region.last_scraped_at).toLocaleDateString() : "Never"}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs ${region.enabled ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>
                       {region.enabled ? "Enabled" : "Disabled"}
@@ -426,86 +778,54 @@ function AdminPipeline() {
   );
 }
 
-// Admin Listings
-export const adminListingsRoute = createRoute({
+// ─── Settings ────────────────────────────────────────────────────────────────
+
+export const adminSettingsRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
-  path: "/listings",
-  component: AdminListings,
+  path: "/settings",
+  component: AdminSettings,
 });
 
-function AdminListings() {
-  const { data } = useQuery({
-    queryKey: ["admin", "listings"],
-    queryFn: () => api.get<{ items: any[]; total: number }>("/listings?per_page=50"),
+function AdminSettings() {
+  const queryClient = useQueryClient();
+  const [edits, setEdits] = useState<Record<string, string>>({});
+
+  const { data: settings = [] } = useQuery<{ key: string; value: string; type: string }[]>({
+    queryKey: ["admin", "settings"],
+    queryFn: () => api.get("/admin/settings"),
   });
 
+  const saveMutation = useMutation({
+    mutationFn: (updates: { key: string; value: string }[]) => api.put("/admin/settings", updates),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin", "settings"] }); setEdits({}); },
+  });
+
+  const labels: Record<string, string> = { site_name: "Site Name", site_tagline: "Tagline", contact_email: "Contact Email" };
+
   return (
     <div>
-      <h1 className="font-heading text-2xl font-bold mb-6">Manage Listings</h1>
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="text-left px-4 py-3 font-medium">Name</th>
-              <th className="text-left px-4 py-3 font-medium">Location</th>
-              <th className="text-left px-4 py-3 font-medium">Rating</th>
-              <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-right px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!data?.items?.length ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                  No listings yet. Run the pipeline to import data.
-                </td>
-              </tr>
-            ) : (
-              data.items.map((listing: any) => (
-                <tr key={listing.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{listing.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{listing.city}, {listing.state}</td>
-                  <td className="px-4 py-3">
-                    {listing.google_rating && (
-                      <span className="flex items-center gap-1">
-                        <Star className="w-3.5 h-3.5 fill-accent text-accent" />
-                        {listing.google_rating}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded-full text-xs bg-green-50 text-green-700">
-                      active
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right flex justify-end gap-2">
-                    <a href={`/listing/${listing.slug}`} className="text-muted-foreground hover:text-foreground p-1">
-                      <Eye className="w-4 h-4" />
-                    </a>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">Site Settings</h1>
+        {Object.keys(edits).length > 0 && (
+          <button onClick={() => saveMutation.mutate(Object.entries(edits).map(([key, value]) => ({ key, value })))} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            <Save className="w-4 h-4" /> Save Changes
+          </button>
+        )}
       </div>
-    </div>
-  );
-}
 
-// Admin Users
-export const adminUsersRoute = createRoute({
-  getParentRoute: () => adminLayoutRoute,
-  path: "/users",
-  component: AdminUsers,
-});
-
-function AdminUsers() {
-  return (
-    <div>
-      <h1 className="font-heading text-2xl font-bold mb-6">Manage Users</h1>
-      <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
-        User management coming in Phase 3.
+      <div className="bg-white rounded-xl border border-border p-6 space-y-4">
+        {settings.map((s) => (
+          <div key={s.key}>
+            <label className="block text-sm font-medium mb-1">{labels[s.key] || s.key}</label>
+            <input
+              type="text"
+              value={edits[s.key] ?? s.value}
+              onChange={(e) => setEdits((p) => ({ ...p, [s.key]: e.target.value }))}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+            />
+          </div>
+        ))}
+        {settings.length === 0 && <p className="text-muted-foreground text-sm">No settings found.</p>}
       </div>
     </div>
   );

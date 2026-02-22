@@ -62,3 +62,26 @@ class StatsResponse(BaseModel):
     total_users: int
     total_leads: int
     recent_leads: int  # Last 30 days
+
+
+class PlanResponse(BaseModel):
+    id: int
+    name: str
+    price_cents: int
+    interval_days: int
+    max_images: int
+    is_featured: bool
+    is_active: bool
+    features: list | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class PlanUpdate(BaseModel):
+    name: str | None = None
+    price_cents: int | None = None
+    interval_days: int | None = None
+    max_images: int | None = None
+    is_featured: bool | None = None
+    is_active: bool | None = None
+    features: list | None = None

@@ -4,7 +4,11 @@ import { searchRoute } from "./routes/search";
 import { loginRoute } from "./routes/login";
 import { registerRoute } from "./routes/register";
 import { listingDetailRoute } from "./routes/listing.$slug";
-import { adminLayoutRoute, adminIndexRoute, adminApiKeysRoute, adminPipelineRoute, adminListingsRoute, adminUsersRoute } from "./routes/admin";
+import {
+  adminLayoutRoute, adminIndexRoute, adminApiKeysRoute, adminPipelineRoute,
+  adminListingsRoute, adminUsersRoute, adminCategoriesRoute, adminPlansRoute,
+  adminSettingsRoute,
+} from "./routes/admin";
 import { dashboardLayoutRoute, dashboardIndexRoute, dashboardListingsRoute, dashboardLeadsRoute, dashboardProfileRoute } from "./routes/dashboard";
 
 export const routeTree = rootRoute.addChildren([
@@ -19,6 +23,9 @@ export const routeTree = rootRoute.addChildren([
     adminPipelineRoute,
     adminListingsRoute,
     adminUsersRoute,
+    adminCategoriesRoute,
+    adminPlansRoute,
+    adminSettingsRoute,
   ]),
   dashboardLayoutRoute.addChildren([
     dashboardIndexRoute,

@@ -122,17 +122,30 @@ app.add_middleware(
 )
 
 # Import and include routers
-from app.routers import auth, listings, categories, contact, search
+from app.routers import auth, listings, categories, contact, search, dashboard
 from app.routers.admin import api_keys as admin_api_keys
 from app.routers.admin import pipeline as admin_pipeline
+from app.routers.admin import listings as admin_listings
+from app.routers.admin import users as admin_users
+from app.routers.admin import categories as admin_categories
+from app.routers.admin import plans as admin_plans
+from app.routers.admin import settings as admin_settings
+from app.routers.admin import stats as admin_stats
 
 app.include_router(auth.router)
 app.include_router(listings.router)
 app.include_router(categories.router)
 app.include_router(contact.router)
 app.include_router(search.router)
+app.include_router(dashboard.router)
 app.include_router(admin_api_keys.router)
 app.include_router(admin_pipeline.router)
+app.include_router(admin_listings.router)
+app.include_router(admin_users.router)
+app.include_router(admin_categories.router)
+app.include_router(admin_plans.router)
+app.include_router(admin_settings.router)
+app.include_router(admin_stats.router)
 
 
 @app.get("/api/health")

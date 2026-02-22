@@ -140,14 +140,3 @@ async def health():
     return {"status": "ok"}
 
 
-@app.get("/api/debug/env")
-async def debug_env():
-    """Temporary debug endpoint — remove after confirming env vars work."""
-    import os
-    return {
-        "admin_email": settings.admin_email,
-        "admin_pw_len": len(settings.admin_password),
-        "admin_pw_first3": settings.admin_password[:3],
-        "env_ADMIN_PASSWORD_set": "ADMIN_PASSWORD" in os.environ,
-        "env_DATABASE_URL_set": "DATABASE_URL" in os.environ,
-    }

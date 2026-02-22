@@ -92,6 +92,14 @@ async def lifespan(app: FastAPI):
                 logger.info("Database seeded successfully!")
             else:
                 logger.info("Database already seeded.")
+                # Always sync admin password from env var
+                admin = (await db.execute(
+                    select(User).where(User.email == settings.admin_email)
+                )).scalar_one_or_none()
+                if admin:
+                    admin.password_hash = hash_password(settings.admin_password)
+                    await db.commit()
+                    logger.info("Admin password synced from env.")
     except Exception as e:
         logger.error(f"Seed failed: {e}")
 

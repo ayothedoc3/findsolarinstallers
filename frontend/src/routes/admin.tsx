@@ -667,10 +667,14 @@ export const adminPipelineRoute = createRoute({
 function AdminPipeline() {
   const queryClient = useQueryClient();
   const [runMode, setRunMode] = useState("weekly");
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+
+  const hasRunning = (runs: any[]) => runs.some((r: any) => r.status === "running" || r.status === "queued");
 
   const { data: runs = [] } = useQuery<any[]>({
     queryKey: ["admin", "pipeline", "runs"],
     queryFn: () => api.get("/admin/pipeline/runs"),
+    refetchInterval: (query) => hasRunning(query.state.data ?? []) ? 5000 : false,
   });
 
   const { data: regions = [] } = useQuery<any[]>({
@@ -679,9 +683,24 @@ function AdminPipeline() {
   });
 
   const triggerMutation = useMutation({
-    mutationFn: (data: { mode: string }) => api.post("/admin/pipeline/run", data),
+    mutationFn: (data: { mode: string; regions?: string[] }) => api.post("/admin/pipeline/run", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "pipeline"] }),
   });
+
+  const handleTrigger = () => {
+    const payload: { mode: string; regions?: string[] } = { mode: runMode };
+    if (selectedRegions.length > 0) payload.regions = selectedRegions;
+    triggerMutation.mutate(payload);
+  };
+
+  const statusColor = (status: string) => {
+    if (status === "completed") return "bg-green-50 text-green-700";
+    if (status === "completed_with_errors") return "bg-yellow-50 text-yellow-700";
+    if (status === "running") return "bg-blue-50 text-blue-700";
+    if (status === "queued") return "bg-purple-50 text-purple-700";
+    if (status === "failed") return "bg-red-50 text-red-700";
+    return "bg-gray-50 text-gray-700";
+  };
 
   return (
     <div>
@@ -689,47 +708,78 @@ function AdminPipeline() {
 
       <div className="bg-white rounded-xl border border-border p-6 mb-6">
         <h3 className="font-semibold mb-4">Run Pipeline</h3>
-        <div className="flex items-end gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Mode</label>
             <select value={runMode} onChange={(e) => setRunMode(e.target.value)} className="px-3 py-2 rounded-lg border border-border bg-background text-sm">
               <option value="backfill">Backfill (All States)</option>
-              <option value="weekly">Weekly (Rotation)</option>
-              <option value="monthly">Monthly (Re-verify)</option>
+              <option value="weekly">Weekly (Top 5 Rotation)</option>
+              <option value="monthly">Monthly (Re-verify All)</option>
             </select>
           </div>
-          <button onClick={() => triggerMutation.mutate({ mode: runMode })} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors">
-            <Play className="w-4 h-4" /> Start Run
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium mb-1">Specific Regions (optional)</label>
+            <input
+              type="text"
+              value={selectedRegions.join(",")}
+              onChange={(e) => setSelectedRegions(e.target.value ? e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean) : [])}
+              placeholder="e.g., CA,TX,FL (leave empty for auto)"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+            />
+          </div>
+          <button
+            onClick={handleTrigger}
+            disabled={triggerMutation.isPending || hasRunning(runs)}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Play className="w-4 h-4" /> {triggerMutation.isPending ? "Starting..." : hasRunning(runs) ? "Running..." : "Start Run"}
           </button>
         </div>
+        {triggerMutation.isSuccess && (
+          <p className="mt-3 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">Pipeline run queued. Monitoring below...</p>
+        )}
+        {triggerMutation.isError && (
+          <p className="mt-3 text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg">Failed to start run. Check API keys are configured.</p>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden mb-6">
-        <div className="px-4 py-3 border-b border-border"><h3 className="font-semibold">Recent Runs</h3></div>
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <h3 className="font-semibold">Recent Runs</h3>
+          {hasRunning(runs) && <span className="text-xs text-blue-600 animate-pulse">Auto-refreshing...</span>}
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="text-left px-4 py-3 font-medium">ID</th>
               <th className="text-left px-4 py-3 font-medium">Mode</th>
               <th className="text-left px-4 py-3 font-medium">Status</th>
-              <th className="text-left px-4 py-3 font-medium">Regions</th>
+              <th className="text-left px-4 py-3 font-medium">Stats</th>
               <th className="text-left px-4 py-3 font-medium">Started</th>
             </tr>
           </thead>
           <tbody>
             {runs.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No pipeline runs yet.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No pipeline runs yet. Add an Outscraper API key and start a run.</td></tr>
             ) : (
-              runs.slice(0, 10).map((run: any) => (
+              runs.slice(0, 15).map((run: any) => (
                 <tr key={run.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3">#{run.id}</td>
                   <td className="px-4 py-3 capitalize">{run.mode}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${run.status === "completed" ? "bg-green-50 text-green-700" : run.status === "running" ? "bg-blue-50 text-blue-700" : run.status === "failed" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-700"}`}>
-                      {run.status}
-                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs ${statusColor(run.status)}`}>{run.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{run.regions?.join(", ") ?? "All"}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {run.stats?.total_new != null ? (
+                      <span>+{run.stats.total_new} new, {run.stats.total_updated} updated, {run.stats.regions_processed} regions</span>
+                    ) : run.stats?.message ? (
+                      <span>{run.stats.message}</span>
+                    ) : run.error_message ? (
+                      <span className="text-red-600">{run.error_message.slice(0, 80)}</span>
+                    ) : (
+                      <span>{run.regions?.join(", ") ?? "Auto"}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(run.started_at).toLocaleString()}</td>
                 </tr>
               ))

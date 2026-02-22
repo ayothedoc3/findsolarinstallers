@@ -26,14 +26,14 @@ async def trigger_run(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    run = PipelineRun(mode=data.mode, regions=data.regions)
+    run = PipelineRun(mode=data.mode, regions=data.regions, status="queued")
     db.add(run)
     await db.commit()
     await db.refresh(run)
 
-    # TODO: Trigger Celery task here
-    # from app.tasks.pipeline_tasks import run_pipeline
-    # run_pipeline.delay(run.id, data.mode, data.regions)
+    # Trigger Celery task
+    from app.tasks.pipeline_tasks import run_pipeline_task
+    run_pipeline_task.delay(data.mode, data.regions, run.id)
 
     return run
 

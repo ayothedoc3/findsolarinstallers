@@ -42,3 +42,14 @@ export function logout() {
 export function isAuthenticated(): boolean {
   return !!api.getToken();
 }
+
+export function getUserRole(): string | null {
+  const token = api.getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.role || null;
+  } catch {
+    return null;
+  }
+}

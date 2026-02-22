@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Sun, Menu, X, User } from "lucide-react";
+import { Sun, Menu, X, User, Shield, LogOut } from "lucide-react";
 import { useState } from "react";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, getUserRole, logout } from "@/lib/auth";
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const authed = isAuthenticated();
+  const role = getUserRole();
+  const isAdmin = role === "admin";
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-50">
@@ -26,9 +28,22 @@ export function Header() {
             Categories
           </a>
           {authed ? (
-            <a href="/dashboard" className="flex items-center gap-2 text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
-              <User className="w-4 h-4" /> Dashboard
-            </a>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <a href="/admin" className="flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent/80 transition-colors">
+                  <Shield className="w-4 h-4" /> Admin
+                </a>
+              )}
+              <a href="/dashboard" className="flex items-center gap-2 text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors">
+                <User className="w-4 h-4" /> Dashboard
+              </a>
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
               <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -53,12 +68,36 @@ export function Header() {
           <a href="/search" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
             Find Installers
           </a>
-          <Link to="/login" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
-            Sign In
-          </Link>
-          <Link to="/register" className="block text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg text-center" onClick={() => setMobileOpen(false)}>
-            List Your Company
-          </Link>
+          <a href="/categories" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
+            Categories
+          </a>
+          {authed ? (
+            <>
+              {isAdmin && (
+                <a href="/admin" className="flex items-center gap-2 text-sm font-medium text-accent py-2" onClick={() => setMobileOpen(false)}>
+                  <Shield className="w-4 h-4" /> Admin Panel
+                </a>
+              )}
+              <a href="/dashboard" className="flex items-center gap-2 text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
+                <User className="w-4 h-4" /> Dashboard
+              </a>
+              <button
+                onClick={() => { setMobileOpen(false); logout(); }}
+                className="flex items-center gap-2 text-sm font-medium text-destructive py-2 w-full text-left"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
+                Sign In
+              </Link>
+              <Link to="/register" className="block text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg text-center" onClick={() => setMobileOpen(false)}>
+                List Your Company
+              </Link>
+            </>
+          )}
         </nav>
       )}
     </header>

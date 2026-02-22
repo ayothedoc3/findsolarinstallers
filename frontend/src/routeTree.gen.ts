@@ -1,6 +1,7 @@
 import { rootRoute } from "./routes/__root";
 import { indexRoute } from "./routes/index";
 import { searchRoute } from "./routes/search";
+import { categoriesRoute } from "./routes/categories";
 import { loginRoute } from "./routes/login";
 import { registerRoute } from "./routes/register";
 import { listingDetailRoute } from "./routes/listing.$slug";
@@ -14,6 +15,7 @@ import { dashboardLayoutRoute, dashboardIndexRoute, dashboardListingsRoute, dash
 export const routeTree = rootRoute.addChildren([
   indexRoute,
   searchRoute,
+  categoriesRoute,
   loginRoute,
   registerRoute,
   listingDetailRoute,

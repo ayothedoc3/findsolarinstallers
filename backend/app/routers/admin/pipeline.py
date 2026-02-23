@@ -40,6 +40,32 @@ async def trigger_run(
     return run
 
 
+@router.post("/run-inline")
+async def trigger_run_inline(
+    data: PipelineRunRequest,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run the pipeline synchronously on the backend (bypasses Celery worker)."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    from app.pipeline.orchestrator import run_pipeline
+
+    run = PipelineRun(mode=data.mode, regions=data.regions, status="queued")
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+
+    def _execute():
+        run_pipeline(run.id, data.mode, data.regions)
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        loop.run_in_executor(pool, _execute)
+
+    return {"id": run.id, "status": "started_inline"}
+
+
 @router.post("/runs/{run_id}/cancel")
 async def cancel_run(
     run_id: int,

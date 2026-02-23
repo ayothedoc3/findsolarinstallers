@@ -17,6 +17,18 @@ DEFAULT_QUERIES = [
 ]
 
 
+class OutscraperError(Exception):
+    """Base error for Outscraper wrapper failures."""
+
+
+class OutscraperAuthError(OutscraperError):
+    """Raised when the configured API key is invalid/unauthorized."""
+
+
+class OutscraperCreditsExhaustedError(OutscraperError):
+    """Raised when the Outscraper account has no remaining credits."""
+
+
 class SolarOutscraperClient:
     """Outscraper API wrapper with budget control."""
 
@@ -35,6 +47,15 @@ class SolarOutscraperClient:
                 raise ImportError("outscraper package not installed. Run: pip install outscraper")
         return self._client
 
+    @staticmethod
+    def _classify_error(exc: Exception) -> type[Exception] | None:
+        msg = str(exc).lower()
+        if any(token in msg for token in ("invalid token", "invalid api key", "unauthorized", "401")):
+            return OutscraperAuthError
+        if any(token in msg for token in ("credit", "credits", "quota", "payment required", "402", "balance", "insufficient")):
+            return OutscraperCreditsExhaustedError
+        return None
+
     def scrape_region(self, state_name: str, queries: list | None = None,
                        limit_per_query: int = 500) -> list:
         if queries is None:
@@ -43,10 +64,14 @@ class SolarOutscraperClient:
         client = self._get_client()
         all_results = []
         seen_place_ids = set()
+        successful_queries = 0
+        failed_queries: list[str] = []
 
         for query in queries:
             logger.info("Scraping: '%s' (limit=%d)", query, limit_per_query)
             retries = 0
+            last_exc: Exception | None = None
+            query_succeeded = False
             while retries < 3:
                 try:
                     results = client.google_maps_search(
@@ -62,13 +87,31 @@ class SolarOutscraperClient:
                                         seen_place_ids.add(pid)
                                         all_results.append(record)
                     self._credits_used += limit_per_query
+                    successful_queries += 1
+                    query_succeeded = True
                     break
                 except Exception as exc:
+                    classified = self._classify_error(exc)
+                    if classified is OutscraperAuthError:
+                        raise OutscraperAuthError(str(exc)) from exc
+                    if classified is OutscraperCreditsExhaustedError:
+                        raise OutscraperCreditsExhaustedError(str(exc)) from exc
+
+                    last_exc = exc
                     retries += 1
                     wait = 2 ** retries
                     logger.warning("Outscraper error (attempt %d/3): %s. Retrying in %ds...", retries, exc, wait)
                     time.sleep(wait)
+            if not query_succeeded:
+                failed_queries.append(query)
+                if last_exc:
+                    logger.error("Outscraper query failed after 3 attempts for '%s': %s", query, last_exc)
             time.sleep(1)
+
+        if successful_queries == 0 and failed_queries:
+            raise OutscraperError(
+                f"Outscraper requests failed for all queries in {state_name}: {', '.join(failed_queries)}"
+            )
 
         logger.info("Scrape complete for %s: %d unique businesses", state_name, len(all_results))
         return all_results

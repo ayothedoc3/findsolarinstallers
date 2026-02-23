@@ -737,6 +737,7 @@ function AdminPipeline() {
   const statusColor = (status: string) => {
     if (status === "completed") return "bg-green-50 text-green-700";
     if (status === "completed_with_errors") return "bg-yellow-50 text-yellow-700";
+    if (status === "paused_no_credits") return "bg-amber-50 text-amber-700";
     if (status === "running") return "bg-blue-50 text-blue-700";
     if (status === "queued") return "bg-purple-50 text-purple-700";
     if (status === "failed") return "bg-red-50 text-red-700";
@@ -796,7 +797,7 @@ function AdminPipeline() {
           <div>
             <label className="block text-sm font-medium mb-1">Mode</label>
             <select value={runMode} onChange={(e) => setRunMode(e.target.value)} className="px-3 py-2 rounded-lg border border-border bg-background text-sm">
-              <option value="backfill">Backfill (All States)</option>
+              <option value="backfill">Backfill (Resume-safe: never-scraped first)</option>
               <option value="weekly">Weekly (Top 5 Rotation)</option>
               <option value="monthly">Monthly (Re-verify All)</option>
             </select>
@@ -856,7 +857,7 @@ function AdminPipeline() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {run.stats?.progress ? (
-                      <span>{run.stats.progress} — +{run.stats.total_new} new, {run.stats.total_updated} updated</span>
+                      <span>{run.stats.progress} - +{run.stats.total_new} new, {run.stats.total_updated} updated{run.status === "paused_no_credits" ? " - credits exhausted (resume with Backfill)" : ""}</span>
                     ) : run.stats?.total_new != null ? (
                       <span>+{run.stats.total_new} new, {run.stats.total_updated} updated, {run.stats.regions_processed} regions</span>
                     ) : run.stats?.message ? (

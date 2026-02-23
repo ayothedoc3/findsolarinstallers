@@ -8,7 +8,11 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.pipeline import PipelineRun, RegionSchedule, ListingSource
 from app.models.api_key import ApiKey
-from app.pipeline.outscraper_client import SolarOutscraperClient
+from app.pipeline.outscraper_client import (
+    OutscraperAuthError,
+    OutscraperCreditsExhaustedError,
+    SolarOutscraperClient,
+)
 from app.pipeline.cleaner import clean_records
 from app.pipeline.enricher import enrich_records
 from app.pipeline.importer import import_records
@@ -68,8 +72,21 @@ def _get_regions_for_mode(session: Session, mode: str, regions: list[str] | None
         return [{"state_code": r.upper(), "state_name": US_STATES.get(r.upper(), r)} for r in regions]
 
     if mode == "backfill":
+        # Resume-friendly behavior:
+        # 1) finish states that have never been scraped before
+        # 2) once all states were scraped at least once, re-verify oldest first
+        never_scraped = session.execute(
+            select(RegionSchedule)
+            .where(RegionSchedule.enabled == True, RegionSchedule.last_scraped_at.is_(None))
+            .order_by(RegionSchedule.priority.desc(), RegionSchedule.state_name)
+        ).scalars().all()
+        if never_scraped:
+            return [{"state_code": r.state_code, "state_name": r.state_name} for r in never_scraped]
+
         result = session.execute(
-            select(RegionSchedule).where(RegionSchedule.enabled == True).order_by(RegionSchedule.priority.desc())
+            select(RegionSchedule)
+            .where(RegionSchedule.enabled == True)
+            .order_by(RegionSchedule.last_scraped_at.asc().nulls_first(), RegionSchedule.priority.desc())
         )
         return [{"state_code": r.state_code, "state_name": r.state_name} for r in result.scalars().all()]
 
@@ -128,6 +145,8 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
             session.commit()
             return
 
+        region_order = [r["state_code"] for r in region_list]
+
         total_stats = {
             "regions_processed": 0,
             "total_raw": 0,
@@ -137,7 +156,30 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
             "total_skipped": 0,
             "credits_used": 0,
             "errors": [],
+            "failed_regions": [],
+            "completed_regions": [],
+            "total_regions": len(region_list),
         }
+
+        def _persist_progress(i: int | None = None, state_name: str | None = None):
+            completed = set(total_stats.get("completed_regions", []))
+            remaining_regions = [code for code in region_order if code not in completed]
+
+            progress_value = (
+                f"{i + 1}/{len(region_list)}"
+                if i is not None else
+                f"{total_stats['regions_processed']}/{len(region_list)}"
+            )
+            run.stats = {
+                **total_stats,
+                "current_region": state_name,
+                "progress": progress_value,
+                "regions_remaining": len(remaining_regions),
+                "remaining_regions": remaining_regions,
+            }
+            session.commit()
+
+        _persist_progress()
 
         for i, region in enumerate(region_list):
             state_code = region["state_code"]
@@ -151,10 +193,14 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
 
                 if not raw_records:
                     logger.warning("No records for %s, skipping", state_name)
+                    region_row = session.execute(
+                        select(RegionSchedule).where(RegionSchedule.state_code == state_code)
+                    ).scalar_one_or_none()
+                    if region_row:
+                        region_row.last_scraped_at = datetime.utcnow()
                     total_stats["regions_processed"] += 1
-                    # Save progress after each region
-                    run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
-                    session.commit()
+                    total_stats["completed_regions"].append(state_code)
+                    _persist_progress(i, state_name)
                     continue
 
                 # Step 2: Clean
@@ -179,26 +225,56 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
                     region_row.listing_count = (region_row.listing_count or 0) + import_stats["new_count"]
 
                 total_stats["regions_processed"] += 1
+                total_stats["completed_regions"].append(state_code)
 
                 # Save progress after each region so admin UI shows live stats
-                run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
-                session.commit()
+                _persist_progress(i, state_name)
 
                 logger.info("Region %s done: %d new, %d updated", state_name, import_stats["new_count"], import_stats["updated_count"])
 
+            except OutscraperCreditsExhaustedError as e:
+                logger.error("Outscraper credits exhausted for %s: %s", state_name, e)
+                total_stats["errors"].append(f"{state_name}: {str(e)}")
+                total_stats["failed_regions"].append(state_code)
+                total_stats["credits_used"] = client.get_credits_used()
+                _persist_progress(i, state_name)
+                run.status = "paused_no_credits"
+                run.error_message = (
+                    "Outscraper credits appear exhausted. Add credits and start another Backfill run; "
+                    "it will resume with remaining never-scraped states first."
+                )
+                run.completed_at = datetime.utcnow()
+                session.commit()
+                return
+            except OutscraperAuthError as e:
+                logger.error("Outscraper auth failed for %s: %s", state_name, e)
+                total_stats["errors"].append(f"{state_name}: {str(e)}")
+                total_stats["failed_regions"].append(state_code)
+                total_stats["credits_used"] = client.get_credits_used()
+                _persist_progress(i, state_name)
+                run.status = "failed"
+                run.error_message = "Outscraper API key was rejected. Update it in Admin > API Keys."
+                run.completed_at = datetime.utcnow()
+                session.commit()
+                return
             except Exception as e:
                 logger.error("Error processing %s: %s", state_name, e, exc_info=True)
                 total_stats["errors"].append(f"{state_name}: {str(e)}")
+                total_stats["failed_regions"].append(state_code)
                 # Save progress even on error
-                run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
-                session.commit()
+                _persist_progress(i, state_name)
 
         # Update run with final stats
         total_stats["credits_used"] = client.get_credits_used()
-        total_stats.pop("current_region", None)
-        total_stats.pop("progress", None)
         run.status = "completed" if not total_stats["errors"] else "completed_with_errors"
-        run.stats = total_stats
+        remaining_regions = [code for code in region_order if code not in set(total_stats.get("completed_regions", []))]
+        run.stats = {
+            **total_stats,
+            "current_region": None,
+            "progress": f"{total_stats['regions_processed']}/{len(region_list)}",
+            "regions_remaining": len(remaining_regions),
+            "remaining_regions": remaining_regions,
+        }
         run.completed_at = datetime.utcnow()
         session.commit()
 

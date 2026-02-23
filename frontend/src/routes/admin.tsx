@@ -575,7 +575,7 @@ function AdminApiKeys() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", service: "outscraper", key: "" });
 
-  const { data: keys = [] } = useQuery<any[]>({
+  const { data: keys = [], error: keysError, isError: isKeysError } = useQuery<any[]>({
     queryKey: ["admin", "api-keys"],
     queryFn: () => api.get("/admin/api-keys"),
   });
@@ -627,11 +627,21 @@ function AdminApiKeys() {
               <button type="submit" className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2 rounded-lg transition-colors">Save Key</button>
               <button type="button" onClick={() => setShowForm(false)} className="text-sm text-muted-foreground hover:text-foreground px-4 py-2">Cancel</button>
             </div>
+            {createMutation.isError && (
+              <p className="sm:col-span-2 text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg">
+                {(createMutation.error as Error)?.message || "Failed to save API key."}
+              </p>
+            )}
           </form>
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
+        {isKeysError && (
+          <p className="m-4 text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg">
+            {(keysError as Error)?.message || "Failed to load API keys."}
+          </p>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
@@ -664,6 +674,11 @@ function AdminApiKeys() {
             )}
           </tbody>
         </table>
+        {deleteMutation.isError && (
+          <p className="m-4 mt-0 text-sm text-red-700 bg-red-50 px-3 py-2 rounded-lg">
+            {(deleteMutation.error as Error)?.message || "Failed to delete API key."}
+          </p>
+        )}
       </div>
     </div>
   );

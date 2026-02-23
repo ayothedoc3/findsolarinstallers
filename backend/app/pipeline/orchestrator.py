@@ -12,6 +12,7 @@ from app.pipeline.outscraper_client import SolarOutscraperClient
 from app.pipeline.cleaner import clean_records
 from app.pipeline.enricher import enrich_records
 from app.pipeline.importer import import_records
+from app.utils.security import decrypt_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -40,17 +41,18 @@ def _get_sync_session():
 
 def _get_outscraper_key(session: Session) -> str | None:
     """Retrieve the decrypted Outscraper API key from the database."""
-    from cryptography.fernet import Fernet
     result = session.execute(
-        select(ApiKey).where(ApiKey.service == "outscraper", ApiKey.is_active == True)
+        select(ApiKey)
+        .where(ApiKey.service == "outscraper", ApiKey.is_active == True)
+        .order_by(ApiKey.created_at.desc(), ApiKey.id.desc())
+        .limit(1)
     )
     api_key_record = result.scalar_one_or_none()
     if not api_key_record:
         return None
 
     try:
-        fernet = Fernet(settings.encryption_key.encode())
-        decrypted = fernet.decrypt(api_key_record.encrypted_key.encode()).decode()
+        decrypted = decrypt_api_key(api_key_record.encrypted_key)
         # Update last_used_at
         api_key_record.last_used_at = datetime.utcnow()
         session.commit()

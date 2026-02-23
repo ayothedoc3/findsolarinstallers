@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -27,6 +27,13 @@ async def create_api_key(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
+    # Keep a single active key per service so downstream consumers can resolve
+    # the current key unambiguously.
+    await db.execute(
+        update(ApiKey)
+        .where(ApiKey.service == data.service, ApiKey.is_active == True)
+        .values(is_active=False)
+    )
     api_key = ApiKey(
         name=data.name,
         service=data.service,

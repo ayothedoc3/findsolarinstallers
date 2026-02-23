@@ -29,6 +29,25 @@ async def lifespan(app: FastAPI):
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure full-text trigger exists even when the app is started directly
+        # (Dockerfile CMD uses uvicorn, which bypasses backend/start.sh -> seed.py).
+        await conn.execute(text("""
+            CREATE OR REPLACE FUNCTION listings_search_trigger() RETURNS trigger AS $$
+            BEGIN
+                NEW.search_vector :=
+                    setweight(to_tsvector('english', COALESCE(NEW.name, '')), 'A') ||
+                    setweight(to_tsvector('english', COALESCE(NEW.city, '') || ' ' || COALESCE(NEW.state, '') || ' ' || array_to_string(COALESCE(NEW.services_offered, '{}'), ' ')), 'B') ||
+                    setweight(to_tsvector('english', COALESCE(NEW.description, '')), 'C');
+                RETURN NEW;
+            END $$ LANGUAGE plpgsql;
+        """))
+        await conn.execute(text("DROP TRIGGER IF EXISTS tsvector_update ON listings"))
+        await conn.execute(text("""
+            CREATE TRIGGER tsvector_update BEFORE INSERT OR UPDATE ON listings
+            FOR EACH ROW EXECUTE FUNCTION listings_search_trigger()
+        """))
+        # Backfill search_vector for already-imported listings so public q-search works.
+        await conn.execute(text("UPDATE listings SET name = name WHERE search_vector IS NULL"))
 
     # Seed data if empty
     try:
@@ -154,5 +173,4 @@ app.include_router(stripe_router.router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-
 

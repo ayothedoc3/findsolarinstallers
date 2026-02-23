@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,7 +27,15 @@ async def search_listings(
     query = select(Listing).where(Listing.status == "active")
 
     if q:
-        query = query.where(Listing.search_vector.op("@@")(func.plainto_tsquery("english", q)))
+        q_like = f"%{q.strip()}%"
+        query = query.where(or_(
+            Listing.search_vector.op("@@")(func.plainto_tsquery("english", q)),
+            Listing.name.ilike(q_like),
+            Listing.city.ilike(q_like),
+            Listing.state.ilike(q_like),
+            Listing.address.ilike(q_like),
+            Listing.zip_code.ilike(q_like),
+        ))
     if state:
         query = query.where(func.lower(Listing.state) == state.lower())
     if city:

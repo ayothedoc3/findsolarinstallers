@@ -7,6 +7,15 @@ logger = logging.getLogger(__name__)
 SOLAR_KEYWORDS = [
     "solar", "photovoltaic", " pv ", "renewable energy",
     "sun power", "sunpower", "green energy", "clean energy",
+    "energy contractor", "energy company", "energy service",
+    "panel", "inverter", "battery storage",
+]
+
+# Businesses that clearly aren't solar — reject these even from solar-query results
+NON_SOLAR_KEYWORDS = [
+    "nail salon", "hair salon", "restaurant", "pizza", "dentist",
+    "plumber", "hvac only", "auto repair", "car wash", "pet ",
+    "veterinary", "law firm", "attorney", "real estate agent",
 ]
 
 STATE_ABBR_TO_FULL = {
@@ -66,12 +75,31 @@ def resolve_state(raw_state: str) -> tuple[str, str]:
 
 
 def is_solar_related(record: dict) -> bool:
+    """Check if a record is plausibly solar-related.
+
+    Since we already query Outscraper for solar-specific terms, most results
+    are relevant.  We only reject businesses that are clearly NOT solar.
+    """
     searchable = ""
-    for key in ["name", "type", "category", "types", "subtypes"]:
+    for key in ["name", "type", "category", "types", "subtypes", "description"]:
         val = record.get(key)
         if val:
-            searchable += " " + str(val).lower()
-    return any(kw in searchable for kw in SOLAR_KEYWORDS)
+            if isinstance(val, list):
+                searchable += " " + " ".join(str(v).lower() for v in val)
+            else:
+                searchable += " " + str(val).lower()
+
+    # If it explicitly mentions solar/energy keywords, always keep it
+    if any(kw in searchable for kw in SOLAR_KEYWORDS):
+        return True
+
+    # If it looks like a clearly unrelated business, reject it
+    name_lower = str(record.get("name", "")).lower()
+    if any(kw in name_lower for kw in NON_SOLAR_KEYWORDS):
+        return False
+
+    # Otherwise, trust the Outscraper search query — it was solar-specific
+    return True
 
 
 def clean_records(raw_records: list[dict]) -> list[dict]:
@@ -96,8 +124,12 @@ def clean_records(raw_records: list[dict]) -> list[dict]:
             continue
         records.append(r)
 
+    logger.info("After junk filter: %d records", len(records))
+
     # Step 2: Solar filter
     records = [r for r in records if is_solar_related(r)]
+
+    logger.info("After solar filter: %d records", len(records))
 
     # Step 3: Dedup by phone
     seen_phones = {}

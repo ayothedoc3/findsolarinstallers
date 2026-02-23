@@ -107,6 +107,20 @@ def clean_records(raw_records: list[dict]) -> list[dict]:
     if not raw_records:
         return []
 
+    # Step 0: Normalize field names (Outscraper returns "address" not "full_address")
+    for r in raw_records:
+        if not r.get("full_address") and r.get("address"):
+            r["full_address"] = r["address"]
+        if not r.get("full_address"):
+            # Build from parts if individual fields exist
+            parts = [r.get("street", ""), r.get("city", ""), r.get("state", ""), r.get("postal_code", r.get("zip_code", ""))]
+            assembled = ", ".join(str(p).strip() for p in parts if p and str(p).strip())
+            if assembled:
+                r["full_address"] = assembled
+        # Normalize zip code field
+        if not r.get("zip_code") and r.get("postal_code"):
+            r["zip_code"] = r["postal_code"]
+
     # Step 1: Filter junk
     records = []
     skip_counts = {"no_name": 0, "no_address": 0, "closed": 0, "non_us": 0}
@@ -116,7 +130,7 @@ def clean_records(raw_records: list[dict]) -> list[dict]:
         if not name:
             skip_counts["no_name"] += 1
             continue
-        address = str(r.get("full_address", "")).strip()
+        address = str(r.get("full_address") or "").strip()
         if not address:
             skip_counts["no_address"] += 1
             continue
@@ -175,10 +189,11 @@ def clean_records(raw_records: list[dict]) -> list[dict]:
         state_full, state_abbr = resolve_state(str(r.get("state", "")))
         cleaned.append({
             "name": clean_business_name(str(r.get("name", ""))),
-            "full_address": str(r.get("full_address", "")).strip(),
+            "full_address": str(r.get("full_address") or "").strip(),
             "city": str(r.get("city", "")).strip(),
             "state": state_full,
             "state_abbr": state_abbr,
+            "zip_code": str(r.get("zip_code") or r.get("postal_code") or "").strip(),
             "phone": r.get("_phone_e164", ""),
             "website": clean_website(str(r.get("site", r.get("website", "")))),
             "rating": float(r.get("rating", 0) or 0),

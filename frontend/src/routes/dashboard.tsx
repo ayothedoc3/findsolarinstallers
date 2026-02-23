@@ -3,9 +3,9 @@ import { rootRoute } from "./__root";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
-  LayoutDashboard, List, Inbox, User, Plus, Trash2, Eye, Mail, Phone, Save, X,
+  LayoutDashboard, List, Inbox, User, Plus, Trash2, Eye, Mail, Phone, Save, X, Lock, Unlock,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ─── Dashboard layout ────────────────────────────────────────────────────────
 
@@ -293,6 +293,20 @@ export const dashboardLeadsRoute = createRoute({
 
 function DashboardLeads() {
   const queryClient = useQueryClient();
+  const [unlockingId, setUnlockingId] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Handle Stripe return URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      setSuccessMsg("Lead unlocked successfully! Contact details are now visible.");
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      // Clean up URL
+      window.history.replaceState({}, "", "/dashboard/leads");
+      setTimeout(() => setSuccessMsg(""), 5000);
+    }
+  }, [queryClient]);
 
   const { data: leads = [] } = useQuery<any[]>({
     queryKey: ["dashboard", "leads"],
@@ -304,9 +318,34 @@ function DashboardLeads() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
   });
 
+  const unlockMutation = useMutation({
+    mutationFn: (leadId: number) => api.post<{ checkout_url: string }>("/stripe/checkout", { lead_id: leadId }),
+    onSuccess: (data) => {
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    },
+    onError: (err: Error) => {
+      setUnlockingId(null);
+      alert(err.message || "Failed to start checkout");
+    },
+  });
+
+  function handleUnlock(leadId: number) {
+    setUnlockingId(leadId);
+    unlockMutation.mutate(leadId);
+  }
+
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Leads</h1>
+
+      {successMsg && (
+        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-center gap-2">
+          <Unlock className="w-4 h-4" />
+          {successMsg}
+        </div>
+      )}
 
       {leads.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
@@ -317,27 +356,59 @@ function DashboardLeads() {
           {leads.map((lead: any) => (
             <div key={lead.id} className={`bg-white rounded-xl border p-4 ${lead.is_read ? "border-border" : "border-accent"}`}>
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium">{lead.name}</span>
                     {!lead.is_read && <span className="px-2 py-0.5 rounded-full bg-accent/10 text-accent text-xs font-medium">New</span>}
+                    {lead.is_unlocked ? (
+                      <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-medium flex items-center gap-1"><Lock className="w-3 h-3" /> Locked</span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                    <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {lead.email}</span>
-                    {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {lead.phone}</span>}
-                  </div>
-                  {lead.message && <p className="text-sm text-foreground">{lead.message}</p>}
+
+                  {lead.is_unlocked ? (
+                    <>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                        <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {lead.email}</span>
+                        {lead.phone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {lead.phone}</span>}
+                      </div>
+                      {lead.message && <p className="text-sm text-foreground">{lead.message}</p>}
+                    </>
+                  ) : (
+                    <div className="mt-2 mb-2">
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                        <span className="flex items-center gap-1 blur-sm select-none"><Mail className="w-3.5 h-3.5" /> hidden@email.com</span>
+                        <span className="flex items-center gap-1 blur-sm select-none"><Phone className="w-3.5 h-3.5" /> (555) 000-0000</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground blur-sm select-none">Message details are hidden until you unlock this lead...</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     {lead.project_type && <span>Project: {lead.project_type}</span>}
                     {lead.zip_code && <span>ZIP: {lead.zip_code}</span>}
                     <span>{new Date(lead.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
-                {!lead.is_read && (
-                  <button onClick={() => markReadMutation.mutate(lead.id)} className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1">
-                    Mark Read
-                  </button>
-                )}
+
+                <div className="flex flex-col items-end gap-2 ml-4">
+                  {!lead.is_unlocked && (
+                    <button
+                      onClick={() => handleUnlock(lead.id)}
+                      disabled={unlockingId === lead.id}
+                      className="flex items-center gap-1.5 bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-semibold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      {unlockingId === lead.id ? "Redirecting..." : "Unlock — $19.99"}
+                    </button>
+                  )}
+                  {!lead.is_read && (
+                    <button onClick={() => markReadMutation.mutate(lead.id)} className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-2 py-1">
+                      Mark Read
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

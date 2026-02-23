@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.contact_request import ContactRequest
+from app.models.lead_purchase import LeadPurchase
 from app.models.listing import Listing
 from app.models.user import User
 from app.routers.auth import require_role
@@ -32,6 +33,10 @@ async def get_admin_stats(
         select(func.count(ContactRequest.id)).where(ContactRequest.created_at >= thirty_days_ago)
     )).scalar() or 0
 
+    total_lead_revenue_cents = (await db.execute(
+        select(func.coalesce(func.sum(LeadPurchase.amount_cents), 0)).where(LeadPurchase.status == "completed")
+    )).scalar() or 0
+
     return StatsResponse(
         total_listings=total_listings,
         total_states=total_states,
@@ -39,4 +44,5 @@ async def get_admin_stats(
         total_users=total_users,
         total_leads=total_leads,
         recent_leads=recent_leads,
+        total_lead_revenue_cents=total_lead_revenue_cents,
     )

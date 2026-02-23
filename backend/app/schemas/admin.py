@@ -62,6 +62,7 @@ class StatsResponse(BaseModel):
     total_users: int
     total_leads: int
     recent_leads: int  # Last 30 days
+    total_lead_revenue_cents: int = 0  # Total from lead purchases
 
 
 class PlanResponse(BaseModel):

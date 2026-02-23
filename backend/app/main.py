@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
     from app.models.api_key import ApiKey  # noqa: F401
     from app.models.site_setting import SiteSetting
     from app.models.pipeline import PipelineRun, RegionSchedule, ListingSource  # noqa: F401
+    from app.models.lead_purchase import LeadPurchase  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
@@ -131,6 +132,7 @@ from app.routers.admin import categories as admin_categories
 from app.routers.admin import plans as admin_plans
 from app.routers.admin import settings as admin_settings
 from app.routers.admin import stats as admin_stats
+from app.routers import stripe as stripe_router
 
 app.include_router(auth.router)
 app.include_router(listings.router)
@@ -146,6 +148,7 @@ app.include_router(admin_categories.router)
 app.include_router(admin_plans.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_stats.router)
+app.include_router(stripe_router.router)
 
 
 @app.get("/api/health")

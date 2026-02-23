@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.contact_request import ContactRequest
+from app.models.lead_purchase import LeadPurchase
 from app.models.listing import Listing, ListingCategory, ListingImage
 from app.models.category import Category
 from app.models.user import User
@@ -172,7 +173,35 @@ async def my_leads(
         .where(ContactRequest.listing_id.in_(listing_ids))
         .order_by(ContactRequest.created_at.desc())
     )
-    return [ContactResponse.model_validate(c) for c in result.scalars().all()]
+    leads = result.scalars().all()
+
+    # Get all completed purchases for this user
+    purchased_result = await db.execute(
+        select(LeadPurchase.contact_request_id).where(
+            LeadPurchase.user_id == user.id,
+            LeadPurchase.status == "completed",
+        )
+    )
+    unlocked_ids = {r[0] for r in purchased_result.all()}
+
+    responses = []
+    for lead in leads:
+        is_unlocked = lead.id in unlocked_ids
+        resp = ContactResponse(
+            id=lead.id,
+            listing_id=lead.listing_id,
+            name=lead.name,
+            email=lead.email if is_unlocked else None,
+            phone=lead.phone if is_unlocked else None,
+            message=lead.message if is_unlocked else None,
+            project_type=lead.project_type,
+            zip_code=lead.zip_code,
+            is_read=lead.is_read,
+            is_unlocked=is_unlocked,
+            created_at=lead.created_at,
+        )
+        responses.append(resp)
+    return responses
 
 
 @router.put("/leads/{lead_id}/read")

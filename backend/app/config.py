@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     admin_email: str = "admin@findsolarinstallers.xyz"
     admin_password: str = "changeme123"
 
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    lead_price_cents: int = 1999  # $19.99 per lead
+
     # Pipeline
     monthly_credit_budget: float = 500.0
 

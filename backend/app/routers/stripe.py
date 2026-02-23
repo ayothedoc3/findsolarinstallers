@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -12,12 +13,28 @@ from app.database import get_db
 from app.models.contact_request import ContactRequest
 from app.models.lead_purchase import LeadPurchase
 from app.models.listing import Listing
+from app.models.site_setting import SiteSetting
 from app.models.user import User
 from app.routers.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/stripe", tags=["stripe"])
+
+
+async def _get_stripe_config(db: AsyncSession) -> dict:
+    """Load Stripe config from site_settings, falling back to env vars."""
+    result = await db.execute(
+        select(SiteSetting).where(
+            SiteSetting.key.in_(["stripe_secret_key", "stripe_webhook_secret", "lead_price_cents"])
+        )
+    )
+    db_settings = {s.key: s.value for s in result.scalars().all()}
+    return {
+        "stripe_secret_key": db_settings.get("stripe_secret_key") or settings.stripe_secret_key,
+        "stripe_webhook_secret": db_settings.get("stripe_webhook_secret") or settings.stripe_webhook_secret,
+        "lead_price_cents": int(db_settings.get("lead_price_cents") or settings.lead_price_cents),
+    }
 
 
 class CheckoutRequest(BaseModel):
@@ -30,8 +47,9 @@ async def create_checkout(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if not settings.stripe_secret_key:
-        raise HTTPException(status_code=503, detail="Stripe is not configured")
+    cfg = await _get_stripe_config(db)
+    if not cfg["stripe_secret_key"]:
+        raise HTTPException(status_code=503, detail="Stripe is not configured. Add your Stripe key in Admin > Settings.")
 
     # Verify lead exists
     result = await db.execute(
@@ -60,8 +78,8 @@ async def create_checkout(
         raise HTTPException(status_code=400, detail="Lead already unlocked")
 
     # Create Stripe Checkout session
-    stripe.api_key = settings.stripe_secret_key
-    price_cents = settings.lead_price_cents
+    stripe.api_key = cfg["stripe_secret_key"]
+    price_cents = cfg["lead_price_cents"]
 
     session = stripe.checkout.Session.create(
         mode="payment",
@@ -102,20 +120,21 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
-    if settings.stripe_webhook_secret:
+    cfg = await _get_stripe_config(db)
+
+    if cfg["stripe_webhook_secret"]:
         try:
             event = stripe.Webhook.construct_event(
-                payload, sig_header, settings.stripe_webhook_secret
+                payload, sig_header, cfg["stripe_webhook_secret"]
             )
         except stripe.error.SignatureVerificationError:
             raise HTTPException(status_code=400, detail="Invalid signature")
     else:
-        import json
         event = json.loads(payload)
 
     if event.get("type") == "checkout.session.completed":
-        session = event["data"]["object"]
-        session_id = session["id"]
+        session_data = event["data"]["object"]
+        session_id = session_data["id"]
 
         result = await db.execute(
             select(LeadPurchase).where(LeadPurchase.stripe_session_id == session_id)
@@ -124,7 +143,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         if purchase:
             purchase.status = "completed"
             purchase.completed_at = datetime.now(timezone.utc)
-            purchase.stripe_payment_intent = session.get("payment_intent")
+            purchase.stripe_payment_intent = session_data.get("payment_intent")
             await db.commit()
             logger.info(f"Lead purchase completed: user={purchase.user_id}, lead={purchase.contact_request_id}")
 

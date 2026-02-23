@@ -76,6 +76,7 @@ function AdminDashboard() {
         total_users: number;
         total_leads: number;
         recent_leads: number;
+        total_lead_revenue_cents: number;
       }>("/admin/stats"),
   });
 
@@ -88,9 +89,21 @@ function AdminDashboard() {
     { label: "Leads (30d)", value: stats?.recent_leads },
   ];
 
+  const revenue = stats?.total_lead_revenue_cents != null
+    ? `$${(stats.total_lead_revenue_cents / 100).toFixed(2)}`
+    : "...";
+
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Admin Dashboard</h1>
+
+      {/* Revenue highlight */}
+      <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 mb-6 text-primary-foreground">
+        <div className="text-sm opacity-80 mb-1">Lead Revenue</div>
+        <div className="text-3xl font-bold font-heading">{revenue}</div>
+        <div className="text-sm opacity-70 mt-1">Total from pay-per-lead unlocks</div>
+      </div>
+
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         {cards.map((c) => (
           <div key={c.label} className="bg-white rounded-xl border border-border p-5">
@@ -852,30 +865,146 @@ function AdminSettings() {
 
   const labels: Record<string, string> = { site_name: "Site Name", site_tagline: "Tagline", contact_email: "Contact Email" };
 
+  // ── Stripe Settings ──
+  const [stripeForm, setStripeForm] = useState({ stripe_secret_key: "", stripe_webhook_secret: "", lead_price_cents: 1999 });
+  const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [stripeSaved, setStripeSaved] = useState(false);
+
+  const { data: stripeSettings } = useQuery<{
+    stripe_secret_key: string; stripe_webhook_secret: string; lead_price_cents: number;
+    has_stripe_key: boolean; has_webhook_secret: boolean;
+  }>({
+    queryKey: ["admin", "settings", "stripe"],
+    queryFn: () => api.get("/admin/settings/stripe"),
+  });
+
+  // Populate form when data loads
+  if (stripeSettings && !stripeLoaded) {
+    setStripeForm({
+      stripe_secret_key: stripeSettings.stripe_secret_key || "",
+      stripe_webhook_secret: stripeSettings.stripe_webhook_secret || "",
+      lead_price_cents: stripeSettings.lead_price_cents,
+    });
+    setStripeLoaded(true);
+  }
+
+  const stripeMutation = useMutation({
+    mutationFn: (data: typeof stripeForm) => api.put("/admin/settings/stripe", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "settings", "stripe"] });
+      setStripeLoaded(false);
+      setStripeSaved(true);
+      setTimeout(() => setStripeSaved(false), 3000);
+    },
+  });
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-2xl font-bold">Site Settings</h1>
-        {Object.keys(edits).length > 0 && (
-          <button onClick={() => saveMutation.mutate(Object.entries(edits).map(([key, value]) => ({ key, value })))} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-            <Save className="w-4 h-4" /> Save Changes
-          </button>
-        )}
+      <h1 className="font-heading text-2xl font-bold mb-6">Settings</h1>
+
+      {/* Site Settings */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-lg font-semibold">Site Settings</h2>
+          {Object.keys(edits).length > 0 && (
+            <button onClick={() => saveMutation.mutate(Object.entries(edits).map(([key, value]) => ({ key, value })))} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+              <Save className="w-4 h-4" /> Save
+            </button>
+          )}
+        </div>
+        <div className="bg-white rounded-xl border border-border p-6 space-y-4">
+          {settings.filter((s) => !s.key.startsWith("stripe_") && s.key !== "lead_price_cents").map((s) => (
+            <div key={s.key}>
+              <label className="block text-sm font-medium mb-1">{labels[s.key] || s.key}</label>
+              <input
+                type="text"
+                value={edits[s.key] ?? s.value}
+                onChange={(e) => setEdits((p) => ({ ...p, [s.key]: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
+          ))}
+          {settings.length === 0 && <p className="text-muted-foreground text-sm">No settings found.</p>}
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-border p-6 space-y-4">
-        {settings.map((s) => (
-          <div key={s.key}>
-            <label className="block text-sm font-medium mb-1">{labels[s.key] || s.key}</label>
-            <input
-              type="text"
-              value={edits[s.key] ?? s.value}
-              onChange={(e) => setEdits((p) => ({ ...p, [s.key]: e.target.value }))}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
-            />
+      {/* Stripe / Payment Settings */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-heading text-lg font-semibold flex items-center gap-2">
+            <CreditCard className="w-5 h-5" /> Stripe &amp; Payments
+          </h2>
+          {stripeSettings?.has_stripe_key ? (
+            <span className="px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium">Connected</span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-medium">Not Configured</span>
+          )}
+        </div>
+
+        {stripeSaved && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded-lg mb-4 text-sm">
+            Stripe settings saved successfully.
           </div>
-        ))}
-        {settings.length === 0 && <p className="text-muted-foreground text-sm">No settings found.</p>}
+        )}
+
+        <div className="bg-white rounded-xl border border-border p-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Configure your Stripe API keys to enable pay-per-lead payments. Get your keys from{" "}
+            <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+              Stripe Dashboard &rarr; API Keys
+            </a>.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Secret Key</label>
+            <input
+              type="password"
+              value={stripeForm.stripe_secret_key}
+              onChange={(e) => setStripeForm((p) => ({ ...p, stripe_secret_key: e.target.value }))}
+              placeholder="sk_test_... or sk_live_..."
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Starts with sk_test_ (test mode) or sk_live_ (production).</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Webhook Secret</label>
+            <input
+              type="password"
+              value={stripeForm.stripe_webhook_secret}
+              onChange={(e) => setStripeForm((p) => ({ ...p, stripe_webhook_secret: e.target.value }))}
+              placeholder="whsec_..."
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Create a webhook at Stripe Dashboard &rarr; Webhooks pointing to <code className="bg-muted px-1 rounded">https://findsolarinstallers.xyz/api/stripe/webhook</code>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Lead Price ($)</label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={(stripeForm.lead_price_cents / 100).toFixed(2)}
+                onChange={(e) => setStripeForm((p) => ({ ...p, lead_price_cents: Math.round(parseFloat(e.target.value || "0") * 100) }))}
+                className="w-32 px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+              <span className="text-sm text-muted-foreground">per lead unlock</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => stripeMutation.mutate(stripeForm)}
+            disabled={stripeMutation.isPending}
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" /> {stripeMutation.isPending ? "Saving..." : "Save Stripe Settings"}
+          </button>
+        </div>
       </div>
     </div>
   );

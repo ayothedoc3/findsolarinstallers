@@ -719,7 +719,7 @@ function AdminPipeline() {
   });
 
   const triggerMutation = useMutation({
-    mutationFn: (data: { mode: string; regions?: string[] }) => api.post("/admin/pipeline/run", data),
+    mutationFn: (data: { mode: string; regions?: string[] }) => api.post("/admin/pipeline/run-inline", data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "pipeline"] }),
   });
 

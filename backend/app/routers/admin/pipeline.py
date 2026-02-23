@@ -46,9 +46,8 @@ async def trigger_run_inline(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Run the pipeline synchronously on the backend (bypasses Celery worker)."""
-    import asyncio
-    from concurrent.futures import ThreadPoolExecutor
+    """Run the pipeline in a background thread on the backend (bypasses Celery worker)."""
+    import threading
     from app.pipeline.orchestrator import run_pipeline
 
     run = PipelineRun(mode=data.mode, regions=data.regions, status="queued")
@@ -56,12 +55,11 @@ async def trigger_run_inline(
     await db.commit()
     await db.refresh(run)
 
-    def _execute():
-        run_pipeline(run.id, data.mode, data.regions)
-
-    loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor() as pool:
-        loop.run_in_executor(pool, _execute)
+    # Fire-and-forget in a daemon thread so we return immediately
+    thread = threading.Thread(
+        target=run_pipeline, args=(run.id, data.mode, data.regions), daemon=True
+    )
+    thread.start()
 
     return {"id": run.id, "status": "started_inline"}
 

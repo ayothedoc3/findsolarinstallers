@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +38,48 @@ async def trigger_run(
     run_pipeline_task.delay(data.mode, data.regions, run.id)
 
     return run
+
+
+@router.post("/runs/{run_id}/cancel")
+async def cancel_run(
+    run_id: int,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark a stuck/running pipeline run as failed."""
+    result = await db.execute(select(PipelineRun).where(PipelineRun.id == run_id))
+    run = result.scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.status not in ("running", "queued"):
+        raise HTTPException(status_code=400, detail=f"Run is already {run.status}")
+
+    run.status = "failed"
+    run.error_message = "Cancelled by admin"
+    run.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"ok": True, "status": "failed"}
+
+
+@router.get("/worker-status")
+async def worker_status(
+    user: User = Depends(require_role("admin")),
+):
+    """Check if the Celery worker is alive."""
+    try:
+        from celery_app import celery
+        inspector = celery.control.inspect(timeout=3)
+        ping = inspector.ping()
+        if ping:
+            active = inspector.active() or {}
+            return {
+                "alive": True,
+                "workers": list(ping.keys()),
+                "active_tasks": sum(len(v) for v in active.values()),
+            }
+        return {"alive": False, "workers": [], "active_tasks": 0}
+    except Exception as e:
+        return {"alive": False, "error": str(e)}
 
 
 @router.get("/regions", response_model=list[RegionResponse])

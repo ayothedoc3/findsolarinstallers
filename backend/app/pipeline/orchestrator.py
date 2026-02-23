@@ -139,10 +139,10 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
             "errors": [],
         }
 
-        for region in region_list:
+        for i, region in enumerate(region_list):
             state_code = region["state_code"]
             state_name = region["state_name"]
-            logger.info("Processing %s (%s)...", state_name, state_code)
+            logger.info("Processing %s (%s) [%d/%d]...", state_name, state_code, i + 1, len(region_list))
 
             try:
                 # Step 1: Scrape
@@ -151,6 +151,10 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
 
                 if not raw_records:
                     logger.warning("No records for %s, skipping", state_name)
+                    total_stats["regions_processed"] += 1
+                    # Save progress after each region
+                    run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
+                    session.commit()
                     continue
 
                 # Step 2: Clean
@@ -173,16 +177,26 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
                 if region_row:
                     region_row.last_scraped_at = datetime.utcnow()
                     region_row.listing_count = (region_row.listing_count or 0) + import_stats["new_count"]
-                    session.commit()
 
                 total_stats["regions_processed"] += 1
 
+                # Save progress after each region so admin UI shows live stats
+                run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
+                session.commit()
+
+                logger.info("Region %s done: %d new, %d updated", state_name, import_stats["new_count"], import_stats["updated_count"])
+
             except Exception as e:
-                logger.error("Error processing %s: %s", state_name, e)
+                logger.error("Error processing %s: %s", state_name, e, exc_info=True)
                 total_stats["errors"].append(f"{state_name}: {str(e)}")
+                # Save progress even on error
+                run.stats = {**total_stats, "current_region": state_name, "progress": f"{i + 1}/{len(region_list)}"}
+                session.commit()
 
         # Update run with final stats
         total_stats["credits_used"] = client.get_credits_used()
+        total_stats.pop("current_region", None)
+        total_stats.pop("progress", None)
         run.status = "completed" if not total_stats["errors"] else "completed_with_errors"
         run.stats = total_stats
         run.completed_at = datetime.utcnow()

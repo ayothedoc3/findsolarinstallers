@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   LayoutDashboard, List, Users, Key, Workflow, Settings, Tag, CreditCard,
-  Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save,
+  Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save, XCircle,
+  Activity,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -702,16 +703,28 @@ function AdminPipeline() {
   const { data: runs = [] } = useQuery<any[]>({
     queryKey: ["admin", "pipeline", "runs"],
     queryFn: () => api.get("/admin/pipeline/runs"),
-    refetchInterval: (query) => hasRunning(query.state.data ?? []) ? 5000 : false,
+    refetchInterval: (query) => hasRunning(query.state.data ?? []) ? 3000 : false,
   });
 
   const { data: regions = [] } = useQuery<any[]>({
     queryKey: ["admin", "pipeline", "regions"],
     queryFn: () => api.get("/admin/pipeline/regions"),
+    refetchInterval: (query) => hasRunning(runs) ? 10000 : false,
+  });
+
+  const { data: workerStatus } = useQuery<{ alive: boolean; workers?: string[]; active_tasks?: number; error?: string }>({
+    queryKey: ["admin", "pipeline", "worker-status"],
+    queryFn: () => api.get("/admin/pipeline/worker-status"),
+    refetchInterval: 30000,
   });
 
   const triggerMutation = useMutation({
     mutationFn: (data: { mode: string; regions?: string[] }) => api.post("/admin/pipeline/run", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "pipeline"] }),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (runId: number) => api.post(`/admin/pipeline/runs/${runId}/cancel`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "pipeline"] }),
   });
 
@@ -730,9 +743,52 @@ function AdminPipeline() {
     return "bg-gray-50 text-gray-700";
   };
 
+  // Find the active running run for the progress card
+  const activeRun = runs.find((r: any) => r.status === "running" && r.stats?.progress);
+
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Pipeline Management</h1>
+
+      {/* Worker status banner */}
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-lg mb-4 text-sm ${workerStatus?.alive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+        <Activity className="w-4 h-4" />
+        {workerStatus?.alive
+          ? `Worker online (${workerStatus.active_tasks ?? 0} active task${workerStatus.active_tasks !== 1 ? "s" : ""})`
+          : "Worker offline — pipeline tasks will queue but not execute"
+        }
+      </div>
+
+      {/* Live progress card for active run */}
+      {activeRun && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="font-semibold text-blue-900">Run #{activeRun.id} in progress</span>
+            </div>
+            <span className="text-sm text-blue-700">{activeRun.stats.progress}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div className="bg-white/60 rounded-lg px-3 py-2">
+              <div className="text-blue-600 text-xs">Current Region</div>
+              <div className="font-semibold text-blue-900">{activeRun.stats.current_region || "Starting..."}</div>
+            </div>
+            <div className="bg-white/60 rounded-lg px-3 py-2">
+              <div className="text-blue-600 text-xs">New Listings</div>
+              <div className="font-semibold text-blue-900">{activeRun.stats.total_new ?? 0}</div>
+            </div>
+            <div className="bg-white/60 rounded-lg px-3 py-2">
+              <div className="text-blue-600 text-xs">Regions Done</div>
+              <div className="font-semibold text-blue-900">{activeRun.stats.regions_processed ?? 0}</div>
+            </div>
+            <div className="bg-white/60 rounded-lg px-3 py-2">
+              <div className="text-blue-600 text-xs">Errors</div>
+              <div className="font-semibold text-blue-900">{activeRun.stats.errors?.length ?? 0}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-border p-6 mb-6">
         <h3 className="font-semibold mb-4">Run Pipeline</h3>
@@ -784,11 +840,12 @@ function AdminPipeline() {
               <th className="text-left px-4 py-3 font-medium">Status</th>
               <th className="text-left px-4 py-3 font-medium">Stats</th>
               <th className="text-left px-4 py-3 font-medium">Started</th>
+              <th className="text-right px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {runs.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No pipeline runs yet. Add an Outscraper API key and start a run.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No pipeline runs yet. Add an Outscraper API key and start a run.</td></tr>
             ) : (
               runs.slice(0, 15).map((run: any) => (
                 <tr key={run.id} className="border-b border-border last:border-0">
@@ -798,7 +855,9 @@ function AdminPipeline() {
                     <span className={`px-2 py-1 rounded-full text-xs ${statusColor(run.status)}`}>{run.status}</span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
-                    {run.stats?.total_new != null ? (
+                    {run.stats?.progress ? (
+                      <span>{run.stats.progress} — +{run.stats.total_new} new, {run.stats.total_updated} updated</span>
+                    ) : run.stats?.total_new != null ? (
                       <span>+{run.stats.total_new} new, {run.stats.total_updated} updated, {run.stats.regions_processed} regions</span>
                     ) : run.stats?.message ? (
                       <span>{run.stats.message}</span>
@@ -809,6 +868,17 @@ function AdminPipeline() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{new Date(run.started_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">
+                    {(run.status === "running" || run.status === "queued") && (
+                      <button
+                        onClick={() => { if (confirm("Cancel this pipeline run?")) cancelMutation.mutate(run.id); }}
+                        className="text-red-600 hover:text-red-800 p-1"
+                        title="Cancel run"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             )}

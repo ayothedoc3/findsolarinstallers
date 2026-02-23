@@ -191,6 +191,19 @@ def run_pipeline(run_id: int, mode: str, regions: list[str] | None = None):
                 raw_records = client.scrape_region(state_name)
                 total_stats["total_raw"] += len(raw_records)
 
+                # Save sample of first raw record for debugging
+                if raw_records and "debug_sample" not in total_stats:
+                    sample = raw_records[0]
+                    total_stats["debug_sample"] = {
+                        "keys": list(sample.keys())[:30],
+                        "name": sample.get("name"),
+                        "full_address": sample.get("full_address"),
+                        "country": sample.get("country"),
+                        "business_status": sample.get("business_status"),
+                        "type": sample.get("type"),
+                        "subtypes": str(sample.get("subtypes", ""))[:200],
+                    }
+
                 if not raw_records:
                     logger.warning("No records for %s, skipping", state_name)
                     region_row = session.execute(

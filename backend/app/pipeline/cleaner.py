@@ -109,22 +109,28 @@ def clean_records(raw_records: list[dict]) -> list[dict]:
 
     # Step 1: Filter junk
     records = []
+    skip_counts = {"no_name": 0, "no_address": 0, "closed": 0, "non_us": 0}
+    us_variants = {"US", "USA", "UNITED STATES", "UNITED STATES OF AMERICA"}
     for r in raw_records:
         name = str(r.get("name", "")).strip()
         if not name:
+            skip_counts["no_name"] += 1
             continue
         address = str(r.get("full_address", "")).strip()
         if not address:
+            skip_counts["no_address"] += 1
             continue
         status = str(r.get("business_status", "")).upper()
         if status in ("CLOSED_PERMANENTLY", "CLOSED_TEMPORARILY"):
+            skip_counts["closed"] += 1
             continue
         country = str(r.get("country", "")).strip().upper()
-        if country and country not in ("US", "UNITED STATES"):
+        if country and country not in us_variants:
+            skip_counts["non_us"] += 1
             continue
         records.append(r)
 
-    logger.info("After junk filter: %d records", len(records))
+    logger.info("After junk filter: %d records (skipped: %s)", len(records), skip_counts)
 
     # Step 2: Solar filter
     records = [r for r in records if is_solar_related(r)]

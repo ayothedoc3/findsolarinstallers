@@ -116,9 +116,17 @@ def import_records(enriched_records: list[dict], run_id: int | None = None) -> d
                 lng = record.get("longitude", 0)
                 location_wkt = f"SRID=4326;POINT({lng} {lat})" if lat and lng else None
 
+                # Ensure slug is unique in the database
+                base_slug = record["slug"]
+                slug = base_slug
+                counter = 1
+                while session.execute(select(Listing).where(Listing.slug == slug)).scalar_one_or_none():
+                    slug = f"{base_slug}-{counter}"
+                    counter += 1
+
                 listing = Listing(
                     name=record["name"],
-                    slug=record["slug"],
+                    slug=slug,
                     description=record.get("description"),
                     phone=record.get("phone"),
                     website=record.get("website"),
@@ -137,7 +145,13 @@ def import_records(enriched_records: list[dict], run_id: int | None = None) -> d
                     status="active",
                 )
                 session.add(listing)
-                session.flush()  # Get the listing ID
+                try:
+                    session.flush()  # Get the listing ID
+                except Exception as flush_err:
+                    logger.warning("Flush failed for %s: %s", record["name"], flush_err)
+                    session.rollback()
+                    stats["skipped_count"] += 1
+                    continue
 
                 # Assign categories
                 for service in record.get("services_offered", []):

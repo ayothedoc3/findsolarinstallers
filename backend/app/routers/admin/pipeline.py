@@ -89,3 +89,71 @@ async def list_regions(
 ):
     result = await db.execute(select(RegionSchedule).order_by(RegionSchedule.state_name))
     return result.scalars().all()
+
+
+@router.get("/debug-scrape")
+async def debug_scrape(
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Debug endpoint: scrape 1 record, run through cleaner, show raw vs cleaned."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.models.api_key import ApiKey
+    from app.utils.security import decrypt_api_key
+    from app.pipeline.outscraper_client import SolarOutscraperClient
+    from app.pipeline.cleaner import clean_records
+
+    # Get API key
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.service == "outscraper", ApiKey.is_active == True)
+        .order_by(ApiKey.created_at.desc()).limit(1)
+    )
+    api_key_record = result.scalar_one_or_none()
+    if not api_key_record:
+        return {"error": "No Outscraper API key found"}
+
+    try:
+        decrypted = decrypt_api_key(api_key_record.encrypted_key)
+    except Exception as e:
+        return {"error": f"Decrypt failed: {e}"}
+
+    client = SolarOutscraperClient(api_key=decrypted, monthly_budget=100)
+
+    # Scrape with limit=3 for a small state to minimize credit usage
+    def _scrape():
+        return client.scrape_region("Delaware", limit_per_query=3)
+
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor() as pool:
+        raw = await loop.run_in_executor(pool, _scrape)
+
+    if not raw:
+        return {"error": "No raw records returned", "raw_count": 0}
+
+    # Show first 3 raw records
+    raw_samples = []
+    for r in raw[:3]:
+        raw_samples.append({
+            "keys": list(r.keys()),
+            "name": r.get("name"),
+            "full_address": r.get("full_address"),
+            "country": r.get("country"),
+            "business_status": r.get("business_status"),
+            "type": r.get("type"),
+            "subtypes": r.get("subtypes"),
+            "place_id": r.get("place_id"),
+            "city": r.get("city"),
+            "state": r.get("state"),
+        })
+
+    # Run cleaner
+    cleaned = clean_records(raw)
+
+    return {
+        "raw_count": len(raw),
+        "cleaned_count": len(cleaned),
+        "raw_samples": raw_samples,
+        "cleaned_samples": cleaned[:3] if cleaned else [],
+    }

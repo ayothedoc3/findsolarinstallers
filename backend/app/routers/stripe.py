@@ -26,7 +26,7 @@ async def _get_stripe_config(db: AsyncSession) -> dict:
     """Load Stripe config from site_settings, falling back to env vars."""
     result = await db.execute(
         select(SiteSetting).where(
-            SiteSetting.key.in_(["stripe_secret_key", "stripe_webhook_secret", "lead_price_cents"])
+            SiteSetting.key.in_(["stripe_secret_key", "stripe_webhook_secret", "lead_price_cents", "site_base_url"])
         )
     )
     db_settings = {s.key: s.value for s in result.scalars().all()}
@@ -34,6 +34,7 @@ async def _get_stripe_config(db: AsyncSession) -> dict:
         "stripe_secret_key": db_settings.get("stripe_secret_key") or settings.stripe_secret_key,
         "stripe_webhook_secret": db_settings.get("stripe_webhook_secret") or settings.stripe_webhook_secret,
         "lead_price_cents": int(db_settings.get("lead_price_cents") or settings.lead_price_cents),
+        "site_base_url": db_settings.get("site_base_url") or "https://findsolarinstallers.xyz",
     }
 
 
@@ -97,8 +98,8 @@ async def create_checkout(
             "lead_id": str(data.lead_id),
             "user_id": str(user.id),
         },
-        success_url=f"{_get_base_url()}/dashboard?payment=success&lead_id={data.lead_id}",
-        cancel_url=f"{_get_base_url()}/dashboard?payment=cancelled",
+        success_url=f"{cfg['site_base_url']}/dashboard/leads?payment=success&lead_id={data.lead_id}",
+        cancel_url=f"{cfg['site_base_url']}/dashboard/leads?payment=cancelled",
     )
 
     # Store pending purchase
@@ -150,6 +151,3 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     return {"received": True}
 
 
-def _get_base_url() -> str:
-    """Return the frontend base URL for Stripe redirects."""
-    return "https://findsolarinstallers.xyz"

@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import {
   LayoutDashboard, List, Users, Key, Workflow, Settings, Tag, CreditCard,
   Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save, XCircle,
-  Activity,
+  Activity, UserCheck, Check, X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -25,6 +25,7 @@ function AdminLayout() {
     { to: "/admin/categories", icon: Tag, label: "Categories" },
     { to: "/admin/plans", icon: CreditCard, label: "Plans" },
     { to: "/admin/api-keys", icon: Key, label: "API Keys" },
+    { to: "/admin/claims", icon: UserCheck, label: "Claims" },
     { to: "/admin/pipeline", icon: Workflow, label: "Pipeline" },
     { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
@@ -129,16 +130,25 @@ function AdminListings() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [ownershipFilter, setOwnershipFilter] = useState("");
+  const [assigningId, setAssigningId] = useState<number | null>(null);
+  const [assignEmail, setAssignEmail] = useState("");
 
   const { data } = useQuery({
-    queryKey: ["admin", "listings", search, statusFilter],
+    queryKey: ["admin", "listings", search, statusFilter, ownershipFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("q", search);
       if (statusFilter) params.set("status", statusFilter);
+      if (ownershipFilter) params.set("ownership", ownershipFilter);
       params.set("per_page", "50");
       return api.get<{ items: any[]; total: number }>(`/admin/listings?${params}`);
     },
+  });
+
+  const { data: allUsers } = useQuery<{ items: any[] }>({
+    queryKey: ["admin", "users-for-assign"],
+    queryFn: () => api.get("/admin/users?per_page=200"),
   });
 
   const statusMutation = useMutation({
@@ -152,11 +162,30 @@ function AdminListings() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "listings"] }),
   });
 
+  const assignOwnerMutation = useMutation({
+    mutationFn: ({ id, owner_id }: { id: number; owner_id: number | null }) =>
+      api.put(`/admin/listings/${id}/owner`, { owner_id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "listings"] });
+      setAssigningId(null);
+      setAssignEmail("");
+    },
+  });
+
+  const unownedCount = data?.items?.filter((l: any) => !l.owner_id).length ?? 0;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">Manage Listings</h1>
-        <span className="text-sm text-muted-foreground">{data?.total ?? 0} total</span>
+        <div className="flex items-center gap-3">
+          {unownedCount > 0 && (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 font-medium">
+              {unownedCount} unowned
+            </span>
+          )}
+          <span className="text-sm text-muted-foreground">{data?.total ?? 0} total</span>
+        </div>
       </div>
 
       <div className="flex gap-3 mb-4">
@@ -178,6 +207,15 @@ function AdminListings() {
           <option value="suspended">Suspended</option>
           <option value="expired">Expired</option>
         </select>
+        <select
+          value={ownershipFilter}
+          onChange={(e) => setOwnershipFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-border bg-white text-sm"
+        >
+          <option value="">All Ownership</option>
+          <option value="unowned">Unowned (No Owner)</option>
+          <option value="owned">Owned</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -187,6 +225,7 @@ function AdminListings() {
               <th className="text-left px-4 py-3 font-medium">Name</th>
               <th className="text-left px-4 py-3 font-medium">Location</th>
               <th className="text-left px-4 py-3 font-medium">Rating</th>
+              <th className="text-left px-4 py-3 font-medium">Owner</th>
               <th className="text-left px-4 py-3 font-medium">Status</th>
               <th className="text-right px-4 py-3 font-medium">Actions</th>
             </tr>
@@ -194,15 +233,15 @@ function AdminListings() {
           <tbody>
             {!data?.items?.length ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No listings found.
                 </td>
               </tr>
             ) : (
               data.items.map((l: any) => (
                 <tr key={l.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{l.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-4 py-3 font-medium max-w-[200px] truncate">{l.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
                     {[l.city, l.state].filter(Boolean).join(", ") || "—"}
                   </td>
                   <td className="px-4 py-3">
@@ -212,6 +251,39 @@ function AdminListings() {
                         {l.google_rating}
                       </span>
                     ) : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {assigningId === l.id ? (
+                      <div className="flex items-center gap-1">
+                        <select
+                          value={assignEmail}
+                          onChange={(e) => setAssignEmail(e.target.value)}
+                          className="px-2 py-1 rounded border border-border text-xs bg-white max-w-[150px]"
+                        >
+                          <option value="">None</option>
+                          {allUsers?.items?.map((u: any) => (
+                            <option key={u.id} value={u.id}>{u.email}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => assignOwnerMutation.mutate({ id: l.id, owner_id: assignEmail ? parseInt(assignEmail) : null })}
+                          className="text-green-600 hover:text-green-800 p-0.5" title="Save"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setAssigningId(null)} className="text-muted-foreground hover:text-foreground p-0.5" title="Cancel">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setAssigningId(l.id); setAssignEmail(l.owner_id?.toString() || ""); }}
+                        className={`text-xs px-2 py-1 rounded-full ${l.owner_email ? "bg-green-50 text-green-700 hover:bg-green-100" : "bg-orange-50 text-orange-700 hover:bg-orange-100"} transition-colors`}
+                        title="Click to assign owner"
+                      >
+                        {l.owner_email || "Assign Owner"}
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -923,6 +995,109 @@ function AdminPipeline() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Claims ─────────────────────────────────────────────────────────────────
+
+export const adminClaimsRoute = createRoute({
+  getParentRoute: () => adminLayoutRoute,
+  path: "/claims",
+  component: AdminClaims,
+});
+
+function AdminClaims() {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("pending");
+
+  const { data: claims = [] } = useQuery<any[]>({
+    queryKey: ["admin", "claims", statusFilter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set("status", statusFilter);
+      return api.get(`/admin/listings/claims?${params}`);
+    },
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, action, admin_note }: { id: number; action: string; admin_note?: string }) =>
+      api.put(`/admin/listings/claims/${id}`, { action, admin_note }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "claims"] }),
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-heading text-2xl font-bold">Listing Claims</h1>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-border bg-white text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="">All</option>
+        </select>
+      </div>
+
+      {claims.length === 0 ? (
+        <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
+          {statusFilter === "pending" ? "No pending claims." : "No claims found."}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {claims.map((claim: any) => (
+            <div key={claim.id} className="bg-white rounded-xl border border-border p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium">{claim.listing_name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                      claim.status === "pending" ? "bg-yellow-50 text-yellow-700" :
+                      claim.status === "approved" ? "bg-green-50 text-green-700" :
+                      "bg-red-50 text-red-700"
+                    }`}>
+                      {claim.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-0.5">
+                    <div>
+                      {[claim.listing_city, claim.listing_state].filter(Boolean).join(", ")}
+                      {claim.listing_slug && (
+                        <> &middot; <a href={`/listing/${claim.listing_slug}`} className="text-accent hover:underline">View listing</a></>
+                      )}
+                    </div>
+                    <div>Claimed by: <span className="font-medium text-foreground">{claim.user_email}</span></div>
+                    {claim.business_name && <div>Business: {claim.business_name}</div>}
+                    {claim.verification_note && <div>Note: "{claim.verification_note}"</div>}
+                    <div className="text-xs">{new Date(claim.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+                {claim.status === "pending" && (
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => resolveMutation.mutate({ id: claim.id, action: "approve" })}
+                      disabled={resolveMutation.isPending}
+                      className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" /> Approve
+                    </button>
+                    <button
+                      onClick={() => resolveMutation.mutate({ id: claim.id, action: "reject" })}
+                      disabled={resolveMutation.isPending}
+                      className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" /> Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

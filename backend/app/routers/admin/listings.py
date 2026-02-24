@@ -1,10 +1,14 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.listing import Listing, ListingImage
+from app.models.listing_claim import ListingClaim
 from app.models.user import User
 from app.routers.auth import require_role
 from app.schemas.listing import ListingBrief, PaginatedResponse
@@ -12,11 +16,12 @@ from app.schemas.listing import ListingBrief, PaginatedResponse
 router = APIRouter(prefix="/api/admin/listings", tags=["admin-listings"])
 
 
-@router.get("", response_model=PaginatedResponse)
+@router.get("")
 async def list_all_listings(
     q: str | None = None,
     status: str | None = None,
     state: str | None = None,
+    ownership: str | None = None,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=50, ge=1, le=200),
     user: User = Depends(require_role("admin")),
@@ -30,6 +35,10 @@ async def list_all_listings(
         query = query.where(func.lower(Listing.state) == state.lower())
     if q:
         query = query.where(Listing.name.ilike(f"%{q}%"))
+    if ownership == "unowned":
+        query = query.where(Listing.owner_id.is_(None))
+    elif ownership == "owned":
+        query = query.where(Listing.owner_id.isnot(None))
 
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
@@ -39,6 +48,15 @@ async def list_all_listings(
     result = await db.execute(query)
     listings = result.scalars().all()
 
+    # Batch-load owner emails for listings that have owners
+    owner_ids = {l.owner_id for l in listings if l.owner_id}
+    owner_map: dict[int, str] = {}
+    if owner_ids:
+        owner_result = await db.execute(
+            select(User.id, User.email).where(User.id.in_(owner_ids))
+        )
+        owner_map = {row.id: row.email for row in owner_result.all()}
+
     items = []
     for l in listings:
         img_result = await db.execute(
@@ -47,18 +65,24 @@ async def list_all_listings(
             ).limit(1)
         )
         primary_img = img_result.scalar_one_or_none()
-        items.append(ListingBrief(
-            id=l.id, name=l.name, slug=l.slug, city=l.city, state=l.state,
-            google_rating=float(l.google_rating) if l.google_rating else None,
-            total_reviews=l.total_reviews, services_offered=l.services_offered or [],
-            certifications=l.certifications or [], financing_available=l.financing_available,
-            primary_image=primary_img,
-        ))
+        item = {
+            "id": l.id, "name": l.name, "slug": l.slug, "city": l.city,
+            "state": l.state,
+            "google_rating": float(l.google_rating) if l.google_rating else None,
+            "total_reviews": l.total_reviews,
+            "services_offered": l.services_offered or [],
+            "certifications": l.certifications or [],
+            "financing_available": l.financing_available,
+            "primary_image": primary_img,
+            "owner_id": l.owner_id,
+            "owner_email": owner_map.get(l.owner_id) if l.owner_id else None,
+        }
+        items.append(item)
 
-    return PaginatedResponse(
-        items=items, total=total, page=page, per_page=per_page,
-        pages=(total + per_page - 1) // per_page if total > 0 else 0,
-    )
+    return {
+        "items": items, "total": total, "page": page, "per_page": per_page,
+        "pages": (total + per_page - 1) // per_page if total > 0 else 0,
+    }
 
 
 @router.put("/{listing_id}/status")
@@ -91,3 +115,155 @@ async def delete_listing(
         raise HTTPException(status_code=404, detail="Listing not found")
     await db.delete(listing)
     await db.commit()
+
+
+# ─── Owner assignment ─────────────────────────────────────────────────────────
+
+
+class AssignOwnerRequest(BaseModel):
+    owner_id: int | None = None  # None to remove owner
+
+
+@router.put("/{listing_id}/owner")
+async def assign_owner(
+    listing_id: int,
+    data: AssignOwnerRequest,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    if data.owner_id is not None:
+        owner_result = await db.execute(select(User).where(User.id == data.owner_id))
+        owner = owner_result.scalar_one_or_none()
+        if not owner:
+            raise HTTPException(status_code=404, detail="User not found")
+        listing.owner_id = owner.id
+        # Auto-promote to business_owner role if they're just a user
+        if owner.role == "user":
+            owner.role = "business_owner"
+    else:
+        listing.owner_id = None
+
+    await db.commit()
+    return {"ok": True, "owner_id": listing.owner_id}
+
+
+@router.post("/bulk-assign-owner")
+async def bulk_assign_owner(
+    data: dict,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Assign owner to multiple listings at once."""
+    listing_ids: list[int] = data.get("listing_ids", [])
+    owner_id: int | None = data.get("owner_id")
+
+    if not listing_ids:
+        raise HTTPException(status_code=400, detail="No listing IDs provided")
+
+    if owner_id is not None:
+        owner_result = await db.execute(select(User).where(User.id == owner_id))
+        owner = owner_result.scalar_one_or_none()
+        if not owner:
+            raise HTTPException(status_code=404, detail="User not found")
+        if owner.role == "user":
+            owner.role = "business_owner"
+
+    result = await db.execute(select(Listing).where(Listing.id.in_(listing_ids)))
+    listings = result.scalars().all()
+    for listing in listings:
+        listing.owner_id = owner_id
+
+    await db.commit()
+    return {"ok": True, "updated": len(listings)}
+
+
+# ─── Claims management ────────────────────────────────────────────────────────
+
+
+@router.get("/claims")
+async def list_claims(
+    status: str | None = None,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(ListingClaim)
+    if status:
+        query = query.where(ListingClaim.status == status)
+    query = query.order_by(ListingClaim.created_at.desc())
+    result = await db.execute(query)
+    claims = result.scalars().all()
+
+    # Enrich with listing/user info
+    items = []
+    for c in claims:
+        listing_result = await db.execute(select(Listing.name, Listing.slug, Listing.city, Listing.state).where(Listing.id == c.listing_id))
+        listing_info = listing_result.one_or_none()
+        user_result = await db.execute(select(User.email, User.company_name).where(User.id == c.user_id))
+        user_info = user_result.one_or_none()
+        items.append({
+            "id": c.id,
+            "listing_id": c.listing_id,
+            "listing_name": listing_info.name if listing_info else None,
+            "listing_slug": listing_info.slug if listing_info else None,
+            "listing_city": listing_info.city if listing_info else None,
+            "listing_state": listing_info.state if listing_info else None,
+            "user_id": c.user_id,
+            "user_email": user_info.email if user_info else None,
+            "company_name": user_info.company_name if user_info else c.business_name,
+            "business_name": c.business_name,
+            "verification_note": c.verification_note,
+            "admin_note": c.admin_note,
+            "status": c.status,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "resolved_at": c.resolved_at.isoformat() if c.resolved_at else None,
+        })
+    return items
+
+
+class ClaimActionRequest(BaseModel):
+    action: str  # approve | reject
+    admin_note: str | None = None
+
+
+@router.put("/claims/{claim_id}")
+async def resolve_claim(
+    claim_id: int,
+    data: ClaimActionRequest,
+    user: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    if data.action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
+
+    result = await db.execute(select(ListingClaim).where(ListingClaim.id == claim_id))
+    claim = result.scalar_one_or_none()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    if claim.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Claim already {claim.status}")
+
+    claim.admin_note = data.admin_note
+    claim.resolved_at = datetime.now(timezone.utc)
+
+    if data.action == "approve":
+        claim.status = "approved"
+        # Assign the listing to the claiming user
+        listing_result = await db.execute(select(Listing).where(Listing.id == claim.listing_id))
+        listing = listing_result.scalar_one_or_none()
+        if listing:
+            listing.owner_id = claim.user_id
+        # Auto-promote to business_owner
+        claimant_result = await db.execute(select(User).where(User.id == claim.user_id))
+        claimant = claimant_result.scalar_one_or_none()
+        if claimant and claimant.role == "user":
+            claimant.role = "business_owner"
+    else:
+        claim.status = "rejected"
+
+    await db.commit()
+    return {"ok": True, "status": claim.status}

@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.listing import Listing, ListingImage
+from app.models.listing_claim import ListingClaim
+from app.models.user import User
+from app.routers.auth import get_current_user
 from app.schemas.listing import ListingBrief, ListingResponse, PaginatedResponse
 
 router = APIRouter(prefix="/api/listings", tags=["listings"])
@@ -88,7 +92,7 @@ async def search_listings(
     )
 
 
-@router.get("/{slug}", response_model=ListingResponse)
+@router.get("/{slug}")
 async def get_listing(slug: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Listing)
@@ -99,4 +103,50 @@ async def get_listing(slug: str, db: AsyncSession = Depends(get_db)):
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
 
-    return listing
+    resp = ListingResponse.model_validate(listing)
+    data = resp.model_dump()
+    data["is_claimed"] = listing.owner_id is not None
+    return data
+
+
+class ClaimRequest(BaseModel):
+    business_name: str | None = None
+    verification_note: str | None = None
+
+
+@router.post("/{slug}/claim")
+async def claim_listing(
+    slug: str,
+    data: ClaimRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Listing).where(Listing.slug == slug))
+    listing = result.scalar_one_or_none()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    # Check if already owned
+    if listing.owner_id is not None:
+        raise HTTPException(status_code=400, detail="This listing has already been claimed")
+
+    # Check for existing pending claim by this user
+    existing = await db.execute(
+        select(ListingClaim).where(
+            ListingClaim.listing_id == listing.id,
+            ListingClaim.user_id == user.id,
+            ListingClaim.status == "pending",
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="You already have a pending claim for this listing")
+
+    claim = ListingClaim(
+        listing_id=listing.id,
+        user_id=user.id,
+        business_name=data.business_name,
+        verification_note=data.verification_note,
+    )
+    db.add(claim)
+    await db.commit()
+    return {"ok": True, "message": "Claim submitted. An admin will review it shortly."}

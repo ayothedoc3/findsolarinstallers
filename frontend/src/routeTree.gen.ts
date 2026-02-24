@@ -8,7 +8,7 @@ import { listingDetailRoute } from "./routes/listing.$slug";
 import {
   adminLayoutRoute, adminIndexRoute, adminApiKeysRoute, adminPipelineRoute,
   adminListingsRoute, adminUsersRoute, adminCategoriesRoute, adminPlansRoute,
-  adminSettingsRoute,
+  adminSettingsRoute, adminClaimsRoute,
 } from "./routes/admin";
 import { dashboardLayoutRoute, dashboardIndexRoute, dashboardListingsRoute, dashboardLeadsRoute, dashboardProfileRoute } from "./routes/dashboard";
 
@@ -27,6 +27,7 @@ export const routeTree = rootRoute.addChildren([
     adminUsersRoute,
     adminCategoriesRoute,
     adminPlansRoute,
+    adminClaimsRoute,
     adminSettingsRoute,
   ]),
   dashboardLayoutRoute.addChildren([

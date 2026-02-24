@@ -1,6 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Star,
@@ -16,6 +16,7 @@ import {
   Award,
   DollarSign,
   Wrench,
+  Building2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -53,6 +54,7 @@ interface Listing {
   categories: { id: number; name: string; slug: string }[];
   status: string;
   created_at: string;
+  is_claimed?: boolean;
 }
 
 function ListingDetailPage() {
@@ -67,10 +69,21 @@ function ListingDetailPage() {
     zip_code: "",
   });
   const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [showClaimForm, setShowClaimForm] = useState(false);
+  const [claimNote, setClaimNote] = useState("");
+  const [claimSubmitted, setClaimSubmitted] = useState(false);
 
   const { data: listing, isLoading, error } = useQuery<Listing>({
     queryKey: ["listing", slug],
     queryFn: () => api.get(`/listings/${slug}`),
+  });
+
+  const claimMutation = useMutation({
+    mutationFn: () => api.post(`/listings/${slug}/claim`, { verification_note: claimNote }),
+    onSuccess: () => {
+      setClaimSubmitted(true);
+      setShowClaimForm(false);
+    },
   });
 
   const handleContactSubmit = async (e: React.FormEvent) => {
@@ -408,6 +421,59 @@ function ListingDetailPage() {
                 <Phone className="w-4 h-4" />
                 Call Now
               </a>
+            )}
+
+            {/* Claim Listing */}
+            {!listing.is_claimed && (
+              <div className="bg-white rounded-xl border border-border p-4">
+                {claimSubmitted ? (
+                  <div className="text-center py-2">
+                    <div className="text-green-700 font-semibold text-sm mb-1">Claim Submitted</div>
+                    <p className="text-xs text-muted-foreground">An admin will review your claim shortly.</p>
+                  </div>
+                ) : showClaimForm ? (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Claim this listing</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Prove you own this business to manage leads and receive customer inquiries.
+                    </p>
+                    <textarea
+                      placeholder="How can you verify ownership? (e.g., I'm the owner, my email is on the website, etc.)"
+                      value={claimNote}
+                      onChange={(e) => setClaimNote(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm min-h-[60px]"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => claimMutation.mutate()}
+                        disabled={claimMutation.isPending}
+                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-semibold py-2 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {claimMutation.isPending ? "Submitting..." : "Submit Claim"}
+                      </button>
+                      <button
+                        onClick={() => setShowClaimForm(false)}
+                        className="text-xs text-muted-foreground hover:text-foreground px-3"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {claimMutation.isError && (
+                      <p className="text-xs text-red-600">
+                        {(claimMutation.error as Error)?.message || "Failed to submit claim. Please log in first."}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowClaimForm(true)}
+                    className="flex items-center justify-center gap-2 w-full text-sm text-muted-foreground hover:text-foreground py-2 transition-colors"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Is this your business? Claim it
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </aside>

@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
     from app.models.site_setting import SiteSetting
     from app.models.pipeline import PipelineRun, RegionSchedule, ListingSource  # noqa: F401
     from app.models.lead_purchase import LeadPurchase  # noqa: F401
+    from app.models.listing_claim import ListingClaim  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))

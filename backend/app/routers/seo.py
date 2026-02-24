@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.listing import Listing
 from app.models.category import Category
+from app.models.generated_page import GeneratedPage
 
 router = APIRouter(tags=["seo"])
 
@@ -44,6 +45,22 @@ async def sitemap(db: AsyncSession = Depends(get_db)):
     <loc>{BASE_URL}/listing/{row.slug}</loc>{lastmod_tag}
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>""")
+
+    # pSEO location pages (sorted by hit_count for priority)
+    pseo_result = await db.execute(
+        select(GeneratedPage.slug, GeneratedPage.updated_at, GeneratedPage.hit_count, GeneratedPage.installer_count)
+        .where(GeneratedPage.is_active.is_(True), GeneratedPage.installer_count >= 1)
+        .order_by(GeneratedPage.hit_count.desc())
+    )
+    for row in pseo_result.all():
+        lastmod = row.updated_at.strftime("%Y-%m-%d") if row.updated_at else ""
+        lastmod_tag = f"\n    <lastmod>{lastmod}</lastmod>" if lastmod else ""
+        priority = "0.7" if row.hit_count > 10 else "0.6"
+        urls.append(f"""  <url>
+    <loc>{BASE_URL}/{row.slug}</loc>{lastmod_tag}
+    <changefreq>weekly</changefreq>
+    <priority>{priority}</priority>
   </url>""")
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>

@@ -33,7 +33,7 @@ MIN_INSTALLERS = 1  # noindex if fewer
 
 # ── Public: serve pSEO page ────────────────────────────────────────────────
 
-@router.get("/pseo/{slug:path}", response_class=HTMLResponse)
+@router.get("/{slug}", response_class=HTMLResponse)
 async def serve_pseo_page(slug: str, request: Request, db: AsyncSession = Depends(get_db)):
     parsed = parse_pseo_slug(slug)
     if not parsed:

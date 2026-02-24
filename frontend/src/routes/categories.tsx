@@ -3,6 +3,7 @@ import { rootRoute } from "./__root";
 import { useQuery } from "@tanstack/react-query";
 import { Sun, Zap, Shield, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
+import { usePageTitle } from "@/lib/seo";
 
 export const categoriesRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -31,6 +32,8 @@ function getIcon(name: string | null) {
 }
 
 function CategoriesPage() {
+  usePageTitle("Solar Service Categories");
+
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ["categories"],
     queryFn: () => api.get("/categories"),

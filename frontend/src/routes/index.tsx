@@ -5,6 +5,7 @@ import { Search, Sun, Shield, Star, Zap, MapPin, ArrowRight, ChevronRight } from
 import { Link } from "@tanstack/react-router";
 import { api } from "@/lib/api";
 import { useState } from "react";
+import { usePageTitle } from "@/lib/seo";
 
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -13,6 +14,7 @@ export const indexRoute = createRoute({
 });
 
 function HomePage() {
+  usePageTitle("");
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 

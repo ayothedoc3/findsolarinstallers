@@ -3,6 +3,7 @@ import { rootRoute } from "./__root";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { register } from "@/lib/auth";
+import { usePageTitle } from "@/lib/seo";
 
 export const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -11,6 +12,7 @@ export const registerRoute = createRoute({
 });
 
 function RegisterPage() {
+  usePageTitle("Create Account");
   const [formData, setFormData] = useState({
     email: "", password: "", first_name: "", last_name: "",
     company_name: "", phone: "", role: "business_owner",

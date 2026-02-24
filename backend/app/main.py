@@ -153,6 +153,7 @@ from app.routers.admin import plans as admin_plans
 from app.routers.admin import settings as admin_settings
 from app.routers.admin import stats as admin_stats
 from app.routers import stripe as stripe_router
+from app.routers import seo as seo_router
 
 app.include_router(auth.router)
 app.include_router(listings.router)
@@ -169,6 +170,7 @@ app.include_router(admin_plans.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_stats.router)
 app.include_router(stripe_router.router)
+app.include_router(seo_router.router)
 
 
 @app.get("/api/health")

@@ -18,7 +18,8 @@ import {
   Wrench,
   Building2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { usePageTitle, useJsonLd } from "@/lib/seo";
 
 export const listingDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -77,6 +78,39 @@ function ListingDetailPage() {
     queryKey: ["listing", slug],
     queryFn: () => api.get(`/listings/${slug}`),
   });
+
+  // SEO
+  const location = listing ? [listing.city, listing.state].filter(Boolean).join(", ") : "";
+  usePageTitle(listing ? `${listing.name} — Solar Installer in ${location}` : "");
+
+  const jsonLd = useMemo(() => {
+    if (!listing) return null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "LocalBusiness",
+      name: listing.name,
+      description: listing.description || `${listing.name} is a solar installer in ${location}.`,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: listing.address,
+        addressLocality: listing.city,
+        addressRegion: listing.state,
+        postalCode: listing.zip_code,
+        addressCountry: "US",
+      },
+      ...(listing.phone && { telephone: listing.phone }),
+      ...(listing.website && { url: listing.website }),
+      ...(listing.google_rating && {
+        aggregateRating: {
+          "@type": "AggregateRating",
+          ratingValue: listing.google_rating,
+          reviewCount: listing.total_reviews,
+          bestRating: 5,
+        },
+      }),
+    };
+  }, [listing, location]);
+  useJsonLd(jsonLd);
 
   const claimMutation = useMutation({
     mutationFn: () => api.post(`/listings/${slug}/claim`, { verification_note: claimNote }),

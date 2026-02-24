@@ -3,7 +3,8 @@ import { rootRoute } from "./__root";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Star, MapPin, Shield } from "lucide-react";
 import { api } from "@/lib/api";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { usePageTitle } from "@/lib/seo";
 
 export const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -45,6 +46,14 @@ interface SearchResults {
 function SearchPage() {
   const search = searchRoute.useSearch();
   const navigate = useNavigate({ from: "/search" });
+
+  usePageTitle(
+    search.state
+      ? `Solar Installers in ${search.state}`
+      : search.q
+        ? `Search: ${search.q}`
+        : "Search Solar Installers"
+  );
 
   const [locationInput, setLocationInput] = useState(search.state || search.q || "");
   const [selectedServices, setSelectedServices] = useState<string[]>(

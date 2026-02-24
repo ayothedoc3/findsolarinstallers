@@ -3,6 +3,7 @@ import { rootRoute } from "./__root";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { login } from "@/lib/auth";
+import { usePageTitle } from "@/lib/seo";
 
 export const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -11,6 +12,7 @@ export const loginRoute = createRoute({
 });
 
 function LoginPage() {
+  usePageTitle("Sign In");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

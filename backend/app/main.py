@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     from app.models.lead_purchase import LeadPurchase  # noqa: F401
     from app.models.listing_claim import ListingClaim  # noqa: F401
     from app.models.generated_page import GeneratedPage  # noqa: F401
+    from app.models.pageview import Pageview  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
@@ -156,6 +157,7 @@ from app.routers.admin import stats as admin_stats
 from app.routers import stripe as stripe_router
 from app.routers import seo as seo_router
 from app.routers import pseo as pseo_router
+from app.routers import analytics as analytics_router
 
 app.include_router(auth.router)
 app.include_router(listings.router)
@@ -173,6 +175,7 @@ app.include_router(admin_settings.router)
 app.include_router(admin_stats.router)
 app.include_router(stripe_router.router)
 app.include_router(seo_router.router)
+app.include_router(analytics_router.router)
 app.include_router(pseo_router.router)
 
 

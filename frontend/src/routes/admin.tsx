@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import {
   LayoutDashboard, List, Users, Key, Workflow, Settings, Tag, CreditCard,
   Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save, XCircle,
-  Activity, UserCheck, Check, X,
+  Activity, UserCheck, Check, X, BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -27,6 +27,7 @@ function AdminLayout() {
     { to: "/admin/api-keys", icon: Key, label: "API Keys" },
     { to: "/admin/claims", icon: UserCheck, label: "Claims" },
     { to: "/admin/pipeline", icon: Workflow, label: "Pipeline" },
+    { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/admin/settings", icon: Settings, label: "Settings" },
   ];
 

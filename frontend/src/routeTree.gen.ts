@@ -10,6 +10,7 @@ import {
   adminListingsRoute, adminUsersRoute, adminCategoriesRoute, adminPlansRoute,
   adminSettingsRoute, adminClaimsRoute,
 } from "./routes/admin";
+import { adminAnalyticsRoute } from "./routes/admin-analytics";
 import { dashboardLayoutRoute, dashboardIndexRoute, dashboardListingsRoute, dashboardLeadsRoute, dashboardProfileRoute } from "./routes/dashboard";
 
 export const routeTree = rootRoute.addChildren([
@@ -28,6 +29,7 @@ export const routeTree = rootRoute.addChildren([
     adminCategoriesRoute,
     adminPlansRoute,
     adminClaimsRoute,
+    adminAnalyticsRoute,
     adminSettingsRoute,
   ]),
   dashboardLayoutRoute.addChildren([

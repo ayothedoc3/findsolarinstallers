@@ -308,5 +308,20 @@ footer a{color:#f59e0b}
   </div>
 </footer>
 
+<!-- Analytics beacon -->
+<script>
+(function(){
+  if(navigator.doNotTrack==="1")return;
+  var d={path:location.pathname,referrer:document.referrer||void 0,screen_w:screen.width,screen_h:screen.height};
+  var p=new URLSearchParams(location.search);
+  if(p.get("utm_source"))d.utm_source=p.get("utm_source");
+  if(p.get("utm_medium"))d.utm_medium=p.get("utm_medium");
+  if(p.get("utm_campaign"))d.utm_campaign=p.get("utm_campaign");
+  var b=JSON.stringify(d);
+  if(navigator.sendBeacon){navigator.sendBeacon("/api/t",new Blob([b],{type:"application/json"}))}
+  else{fetch("/api/t",{method:"POST",body:b,headers:{"Content-Type":"application/json"},keepalive:true}).catch(function(){})}
+})();
+</script>
+
 </body>
 </html>

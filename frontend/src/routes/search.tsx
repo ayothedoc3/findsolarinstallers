@@ -3,7 +3,7 @@ import { rootRoute } from "./__root";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Star, MapPin, Shield } from "lucide-react";
 import { api } from "@/lib/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePageTitle } from "@/lib/seo";
 
 export const searchRoute = createRoute({
@@ -57,11 +57,20 @@ function SearchPage() {
 
   const [locationInput, setLocationInput] = useState(search.state || search.q || "");
   const [selectedServices, setSelectedServices] = useState<string[]>(
-    search.services ? search.services.split(",") : []
+    search.services ? search.services.split(",").filter(Boolean) : []
   );
   const [minRating, setMinRating] = useState<number | undefined>(search.min_rating);
   const [financing, setFinancing] = useState(search.financing || false);
   const [sort, setSort] = useState(search.sort || "rating");
+
+  // Re-sync filter state when URL params change (e.g. navigating from another page)
+  useEffect(() => {
+    setLocationInput(search.state || search.q || "");
+    setSelectedServices(search.services ? search.services.split(",").filter(Boolean) : []);
+    setMinRating(search.min_rating);
+    setFinancing(search.financing || false);
+    setSort(search.sort || "rating");
+  }, [search.state, search.q, search.services, search.min_rating, search.financing, search.sort]);
 
   // Build query params
   const queryParams = new URLSearchParams();
@@ -82,11 +91,14 @@ function SearchPage() {
   });
 
   const applyFilters = () => {
+    // If the location input matches the currently active state filter, preserve it as state.
+    // Otherwise treat it as a general search query.
+    const isStateSame = search.state && locationInput === search.state;
     navigate({
       search: {
-        q: locationInput || "",
-        state: "",
-        services: selectedServices.join(","),
+        q: isStateSame ? "" : (locationInput || ""),
+        state: isStateSame ? search.state : "",
+        services: selectedServices.filter(Boolean).join(","),
         min_rating: minRating,
         financing: financing ? "true" : undefined,
         sort,
@@ -148,6 +160,16 @@ function SearchPage() {
           <div className="bg-white rounded-xl border border-border p-4">
             <h3 className="font-semibold mb-3">Minimum Rating</h3>
             <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="rating"
+                  checked={minRating === undefined}
+                  onChange={() => setMinRating(undefined)}
+                  className="border-border"
+                />
+                <span className="text-muted-foreground">Any rating</span>
+              </label>
               {[4.5, 4.0, 3.5, 3.0].map((r) => (
                 <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
                   <input

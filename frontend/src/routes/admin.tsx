@@ -1150,13 +1150,18 @@ function AdminSettings() {
     setStripeLoaded(true);
   }
 
+  const [stripeError, setStripeError] = useState("");
   const stripeMutation = useMutation({
     mutationFn: (data: typeof stripeForm) => api.put("/admin/settings/stripe", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "settings", "stripe"] });
       setStripeLoaded(false);
       setStripeSaved(true);
+      setStripeError("");
       setTimeout(() => setStripeSaved(false), 3000);
+    },
+    onError: (err: Error) => {
+      setStripeError(err.message || "Failed to save Stripe settings");
     },
   });
 
@@ -1206,6 +1211,11 @@ function AdminSettings() {
         {stripeSaved && (
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded-lg mb-4 text-sm">
             Stripe settings saved successfully.
+          </div>
+        )}
+        {stripeError && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded-lg mb-4 text-sm">
+            Error: {stripeError}
           </div>
         )}
 

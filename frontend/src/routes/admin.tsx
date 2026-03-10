@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import {
   LayoutDashboard, List, Users, Key, Workflow, Settings, Tag, CreditCard,
   Plus, Trash2, Star, Eye, Play, MapPin, Shield, ShieldOff, Save, XCircle,
-  Activity, UserCheck, Check, X, BarChart3,
+  Activity, UserCheck, Check, X, BarChart3, Inbox,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,6 +26,7 @@ function AdminLayout() {
     { to: "/admin/plans", icon: CreditCard, label: "Plans" },
     { to: "/admin/api-keys", icon: Key, label: "API Keys" },
     { to: "/admin/claims", icon: UserCheck, label: "Claims" },
+    { to: "/admin/installer-inquiries", icon: Inbox, label: "Installer Inquiries" },
     { to: "/admin/pipeline", icon: Workflow, label: "Pipeline" },
     { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/admin/settings", icon: Settings, label: "Settings" },
@@ -102,9 +103,9 @@ function AdminDashboard() {
 
       {/* Revenue highlight */}
       <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 mb-6 text-primary-foreground">
-        <div className="text-sm opacity-80 mb-1">Lead Revenue</div>
+        <div className="text-sm opacity-80 mb-1">Legacy Lead Unlock Revenue</div>
         <div className="text-3xl font-bold font-heading">{revenue}</div>
-        <div className="text-sm opacity-70 mt-1">Total from pay-per-lead unlocks</div>
+        <div className="text-sm opacity-70 mt-1">Kept for historical tracking while featured profiles become the main offer</div>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
@@ -152,6 +153,11 @@ function AdminListings() {
     queryFn: () => api.get("/admin/users?per_page=200"),
   });
 
+  const { data: plans = [] } = useQuery<any[]>({
+    queryKey: ["admin", "plans-for-listings"],
+    queryFn: () => api.get("/admin/plans"),
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       api.put(`/admin/listings/${id}/status?status=${status}`),
@@ -173,7 +179,15 @@ function AdminListings() {
     },
   });
 
+  const planMutation = useMutation({
+    mutationFn: ({ id, plan_id }: { id: number; plan_id: number }) =>
+      api.put(`/admin/listings/${id}/plan`, { plan_id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin", "listings"] }),
+  });
+
   const unownedCount = data?.items?.filter((l: any) => !l.owner_id).length ?? 0;
+  const freePlan = plans.find((plan: any) => !plan.is_featured);
+  const featuredPlan = plans.find((plan: any) => plan.is_featured);
 
   return (
     <div>
@@ -204,6 +218,7 @@ function AdminListings() {
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
+          <option value="pending_review">Pending Review</option>
           <option value="pending">Pending</option>
           <option value="suspended">Suspended</option>
           <option value="expired">Expired</option>
@@ -241,7 +256,16 @@ function AdminListings() {
             ) : (
               data.items.map((l: any) => (
                 <tr key={l.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium max-w-[200px] truncate">{l.name}</td>
+                  <td className="px-4 py-3 font-medium max-w-[220px]">
+                    <div className="truncate">{l.name}</div>
+                    <div className="mt-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        l.is_featured ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {l.plan_name || "Free Profile"}
+                      </span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {[l.city, l.state].filter(Boolean).join(", ") || "—"}
                   </td>
@@ -293,12 +317,34 @@ function AdminListings() {
                       className="px-2 py-1 rounded border border-border text-xs bg-white"
                     >
                       <option value="active">Active</option>
+                      <option value="pending_review">Pending Review</option>
                       <option value="pending">Pending</option>
                       <option value="suspended">Suspended</option>
                       <option value="expired">Expired</option>
                     </select>
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      {l.views_30d ?? 0} views / {l.quote_requests_30d ?? 0} quotes
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-right flex justify-end gap-2">
+                    {featuredPlan && !l.is_featured && (
+                      <button
+                        onClick={() => planMutation.mutate({ id: l.id, plan_id: featuredPlan.id })}
+                        className="text-xs px-2 py-1 rounded border border-accent/30 text-accent hover:bg-accent/10"
+                        title="Assign featured plan"
+                      >
+                        Feature 30d
+                      </button>
+                    )}
+                    {freePlan && l.plan_id !== freePlan.id && (
+                      <button
+                        onClick={() => planMutation.mutate({ id: l.id, plan_id: freePlan.id })}
+                        className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground"
+                        title="Reset to free plan"
+                      >
+                        Set Free
+                      </button>
+                    )}
                     <a href={`/listing/${l.slug}`} className="text-muted-foreground hover:text-foreground p-1" title="View">
                       <Eye className="w-4 h-4" />
                     </a>
@@ -1221,7 +1267,7 @@ function AdminSettings() {
 
         <div className="bg-white rounded-xl border border-border p-6 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Configure your Stripe API keys to enable pay-per-lead payments. Get your keys from{" "}
+            Configure Stripe only if you still want the legacy lead-unlock flow available. Get your keys from{" "}
             <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
               Stripe Dashboard &rarr; API Keys
             </a>.
@@ -1265,7 +1311,7 @@ function AdminSettings() {
                 onChange={(e) => setStripeForm((p) => ({ ...p, lead_price_cents: Math.round(parseFloat(e.target.value || "0") * 100) }))}
                 className="w-32 px-3 py-2 rounded-lg border border-border bg-background text-sm"
               />
-              <span className="text-sm text-muted-foreground">per lead unlock</span>
+              <span className="text-sm text-muted-foreground">legacy lead unlock</span>
             </div>
           </div>
 

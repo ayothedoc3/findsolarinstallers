@@ -1,6 +1,8 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, case, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,6 +12,7 @@ from app.models.listing_claim import ListingClaim
 from app.models.user import User
 from app.routers.auth import get_current_user
 from app.schemas.listing import ListingBrief, ListingResponse, PaginatedResponse
+from app.services.marketplace import get_plan_lookup, is_featured_listing, resolve_launch_state
 
 router = APIRouter(prefix="/api/listings", tags=["listings"])
 
@@ -28,7 +31,28 @@ async def search_listings(
     sort: str = "rating",
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Listing).where(Listing.status == "active")
+    now = datetime.now(timezone.utc)
+    plan_lookup = await get_plan_lookup(db)
+    featured_plan_ids = [
+        plan_id for plan_id, plan in plan_lookup.items()
+        if plan.is_active and plan.is_featured
+    ]
+    launch = await resolve_launch_state(db)
+    launch_state = str(launch["state"] or launch["display_name"])
+    featured_plan_condition = Listing.plan_id.in_(featured_plan_ids) if featured_plan_ids else false()
+    launch_state_condition = (
+        func.lower(Listing.state) == launch_state.lower()
+        if launch_state else false()
+    )
+
+    query = (
+        select(Listing)
+        .options(selectinload(Listing.plan))
+        .where(
+            Listing.status == "active",
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+        )
+    )
 
     if q:
         q_like = f"%{q.strip()}%"
@@ -58,14 +82,45 @@ async def search_listings(
     total = (await db.execute(count_query)).scalar() or 0
 
     # Sort
+    featured_rank = case(
+        (
+            and_(
+                featured_plan_condition,
+                Listing.featured_until.isnot(None),
+                Listing.featured_until >= now,
+                launch_state_condition,
+            ),
+            1,
+        ),
+        else_=0,
+    )
     if sort == "rating":
-        query = query.order_by(Listing.google_rating.desc().nulls_last())
+        query = query.order_by(
+            featured_rank.desc(),
+            Listing.google_rating.desc().nulls_last(),
+            Listing.total_reviews.desc(),
+            Listing.created_at.desc(),
+        )
     elif sort == "name":
-        query = query.order_by(Listing.name)
+        query = query.order_by(
+            featured_rank.desc(),
+            Listing.name.asc(),
+            Listing.total_reviews.desc(),
+            Listing.created_at.desc(),
+        )
     elif sort == "newest":
-        query = query.order_by(Listing.created_at.desc())
+        query = query.order_by(
+            featured_rank.desc(),
+            Listing.created_at.desc(),
+            Listing.total_reviews.desc(),
+        )
     else:
-        query = query.order_by(Listing.google_rating.desc().nulls_last())
+        query = query.order_by(
+            featured_rank.desc(),
+            Listing.google_rating.desc().nulls_last(),
+            Listing.total_reviews.desc(),
+            Listing.created_at.desc(),
+        )
 
     # Paginate
     query = query.offset((page - 1) * per_page).limit(per_page)
@@ -84,6 +139,7 @@ async def search_listings(
             total_reviews=l.total_reviews, services_offered=l.services_offered or [],
             certifications=l.certifications or [], financing_available=l.financing_available,
             primary_image=primary_img,
+            is_featured=is_featured_listing(l, plan_lookup, now),
         ))
 
     return PaginatedResponse(
@@ -94,10 +150,20 @@ async def search_listings(
 
 @router.get("/{slug}")
 async def get_listing(slug: str, db: AsyncSession = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    plan_lookup = await get_plan_lookup(db)
     result = await db.execute(
         select(Listing)
-        .where(Listing.slug == slug, Listing.status == "active")
-        .options(selectinload(Listing.images), selectinload(Listing.categories))
+        .where(
+            Listing.slug == slug,
+            Listing.status == "active",
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+        )
+        .options(
+            selectinload(Listing.images),
+            selectinload(Listing.categories),
+            selectinload(Listing.plan),
+        )
     )
     listing = result.scalar_one_or_none()
     if not listing:
@@ -105,7 +171,18 @@ async def get_listing(slug: str, db: AsyncSession = Depends(get_db)):
 
     resp = ListingResponse.model_validate(listing)
     data = resp.model_dump()
+    is_featured = is_featured_listing(listing, plan_lookup, now)
+    plan_name = listing.plan.name if listing.plan else None
     data["is_claimed"] = listing.owner_id is not None
+    data["is_featured"] = is_featured
+    data["show_direct_contact"] = is_featured
+    data["plan_name"] = plan_name
+    data["current_plan"] = plan_name
+    data["verification_label"] = "Verified Featured Profile" if is_featured else "Basic Profile"
+    if not is_featured:
+        data["phone"] = None
+        data["email"] = None
+        data["website"] = None
     return data
 
 

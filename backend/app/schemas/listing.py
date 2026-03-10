@@ -50,6 +50,12 @@ class ListingResponse(ListingBase):
     longitude: float | None = None
     images: list["ImageResponse"] = []
     categories: list["CategoryBrief"] = []
+    plan_name: str | None = None
+    current_plan: str | None = None
+    is_featured: bool = False
+    show_direct_contact: bool = False
+    verification_label: str | None = None
+    expires_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,6 +74,7 @@ class ListingBrief(BaseModel):
     certifications: list[str]
     financing_available: bool
     primary_image: str | None = None
+    is_featured: bool = False
 
     model_config = {"from_attributes": True}
 

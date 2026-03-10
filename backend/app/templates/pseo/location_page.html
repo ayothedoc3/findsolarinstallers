@@ -8,19 +8,16 @@
 <link rel="canonical" href="{{ base_url }}/{{ page.slug }}">
 {% if noindex %}<meta name="robots" content="noindex, follow">{% endif %}
 
-<!-- Open Graph -->
 <meta property="og:title" content="{{ page.title }}">
 <meta property="og:description" content="{{ page.meta_description }}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="{{ base_url }}/{{ page.slug }}">
-<meta property="og:site_name" content="FindSolarInstallers.xyz">
+<meta property="og:site_name" content="Find Solar Installers">
 
-<!-- Twitter -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{{ page.title }}">
 <meta name="twitter:description" content="{{ page.meta_description }}">
 
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -28,75 +25,69 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;color:#1e293b;background:#f8fafc;line-height:1.6}
-h1,h2,h3,h4{font-family:'Plus Jakarta Sans','Inter',sans-serif;line-height:1.3}
+h1,h2,h3,h4{font-family:'Plus Jakarta Sans','Inter',sans-serif;line-height:1.25}
 a{color:#f59e0b;text-decoration:none}
 a:hover{text-decoration:underline}
 .container{max-width:1100px;margin:0 auto;padding:0 1rem}
 
-/* Header */
 header{background:#0f172a;color:#fff;padding:1rem 0}
-header .container{display:flex;align-items:center;justify-content:space-between}
+header .container{display:flex;align-items:center;justify-content:space-between;gap:1rem}
 header .logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.25rem;font-weight:700;color:#fff;text-decoration:none}
 header .logo span{color:#f59e0b}
-header nav a{color:#94a3b8;font-size:.875rem;margin-left:1.5rem}
+header nav{display:flex;flex-wrap:wrap;gap:1rem}
+header nav a{color:#94a3b8;font-size:.875rem}
 header nav a:hover{color:#fff;text-decoration:none}
 
-/* Hero */
-.hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;padding:3rem 0}
-.hero h1{font-size:clamp(1.5rem,4vw,2.25rem);font-weight:800;margin-bottom:1rem}
-.hero h1 em{color:#f59e0b;font-style:normal}
-.hero p{color:#94a3b8;font-size:1.05rem;max-width:600px}
+.hero{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff;padding:3rem 0 4rem}
+.hero h1{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:800;margin-bottom:1rem}
+.hero p{color:#cbd5e1;font-size:1.05rem;max-width:700px}
 
-/* Stats bar */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.5rem;margin:-2rem auto 2rem;position:relative;z-index:1;max-width:700px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;background:#fff;border:1px solid #e2e8f0;border-radius:.9rem;padding:1.5rem;margin:-2rem auto 2rem;position:relative;z-index:1;max-width:760px;text-align:center}
 .stats .num{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.75rem;font-weight:700;color:#0f172a}
 .stats .label{font-size:.8rem;color:#64748b;margin-top:.25rem}
 
-/* Cards */
-.installer-card{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;margin-bottom:1rem;transition:box-shadow .2s,border-color .2s}
-.installer-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);border-color:#f59e0b40}
-.installer-card h3{font-size:1.1rem;margin-bottom:.5rem}
+section{padding:2.5rem 0}
+section h2{font-size:1.5rem;font-weight:700;margin-bottom:1rem}
+
+.section-intro{color:#64748b;max-width:780px;margin-bottom:1.5rem}
+.installer-card{background:#fff;border:1px solid #e2e8f0;border-radius:.9rem;padding:1.25rem;margin-bottom:1rem;transition:box-shadow .2s,border-color .2s}
+.installer-card:hover{box-shadow:0 10px 24px rgba(15,23,42,.08);border-color:#f59e0b50}
+.installer-card h3{font-size:1.1rem;margin-bottom:.35rem}
 .installer-card h3 a{color:#0f172a}
 .installer-card h3 a:hover{color:#f59e0b;text-decoration:none}
-.card-meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.85rem;color:#64748b;margin-bottom:.75rem}
-.card-meta .rating{color:#f59e0b;font-weight:600}
-.tag{display:inline-block;font-size:.75rem;padding:.2rem .6rem;border-radius:9999px;font-weight:500;margin-right:.25rem;margin-bottom:.25rem}
+.card-meta{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;font-size:.85rem;color:#64748b;margin-bottom:.9rem}
+.card-meta .rating{color:#b45309;font-weight:600}
+.tag{display:inline-block;font-size:.75rem;padding:.25rem .65rem;border-radius:9999px;font-weight:600;margin-right:.35rem;margin-bottom:.35rem}
+.tag-featured{background:#dbeafe;color:#1d4ed8}
 .tag-service{background:#fef3c7;color:#92400e}
 .tag-cert{background:#d1fae5;color:#065f46}
-.tag-finance{background:#dbeafe;color:#1e40af}
-.cta-btn{display:inline-block;background:#f59e0b;color:#fff;font-weight:600;padding:.5rem 1.25rem;border-radius:.5rem;font-size:.875rem;margin-top:.5rem;transition:background .2s}
+.tag-finance{background:#e2e8f0;color:#334155}
+.cta-btn{display:inline-block;background:#f59e0b;color:#fff;font-weight:700;padding:.65rem 1.25rem;border-radius:.65rem;font-size:.9rem;transition:background .2s}
 .cta-btn:hover{background:#d97706;text-decoration:none}
+.cta-btn.secondary{background:#0f172a}
+.cta-btn.secondary:hover{background:#1e293b}
 
-/* Sections */
-section{padding:2.5rem 0}
-section h2{font-size:1.5rem;font-weight:700;margin-bottom:1.5rem}
-.faq-item{background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:1.25rem;margin-bottom:.75rem}
+.faq-item{background:#fff;border:1px solid #e2e8f0;border-radius:.9rem;padding:1.25rem;margin-bottom:.75rem}
 .faq-item h3{font-size:1rem;font-weight:600;margin-bottom:.5rem;color:#0f172a}
-.faq-item p{font-size:.9rem;color:#475569}
+.faq-item p{font-size:.92rem;color:#475569}
 
-/* Related */
 .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.75rem}
-.related-grid a{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:.5rem;padding:.75rem 1rem;font-size:.875rem;font-weight:500;color:#0f172a;transition:border-color .2s}
+.related-grid a{display:block;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.85rem 1rem;font-size:.9rem;font-weight:500;color:#0f172a;transition:border-color .2s}
 .related-grid a:hover{border-color:#f59e0b;text-decoration:none}
 
-/* CTA banner */
-.cta-banner{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:1rem;padding:2.5rem;text-align:center;margin:2rem 0}
+.cta-banner{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:1rem;padding:2.5rem;text-align:center;margin:1rem 0}
 .cta-banner h2{color:#fff;margin-bottom:.75rem}
-.cta-banner p{color:#94a3b8;margin-bottom:1.25rem}
-.cta-banner .cta-btn{font-size:1rem;padding:.75rem 2rem}
+.cta-banner p{color:#cbd5e1;margin:0 auto 1.25rem;max-width:720px}
 
-/* Footer */
-footer{background:#0f172a;color:#94a3b8;padding:2rem 0;font-size:.8rem;text-align:center;margin-top:2rem}
+footer{background:#0f172a;color:#94a3b8;padding:2rem 0;font-size:.82rem;text-align:center;margin-top:2rem}
 footer a{color:#f59e0b}
 
-/* Responsive */
 @media(max-width:640px){
+  header .container{flex-direction:column;align-items:flex-start}
   .stats{grid-template-columns:1fr;gap:.75rem}
-  header nav a{margin-left:.75rem;font-size:.8rem}
 }
 </style>
 
-<!-- JSON-LD: CollectionPage -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -107,7 +98,7 @@ footer a{color:#f59e0b}
   "numberOfItems": {{ count }},
   "provider": {
     "@type": "Organization",
-    "name": "FindSolarInstallers.xyz",
+    "name": "Find Solar Installers",
     "url": "{{ base_url }}"
   }
 }
@@ -128,8 +119,8 @@ footer a{color:#f59e0b}
     {% if inst.zip_code %},"postalCode": "{{ inst.zip_code }}"{% endif %}
     ,"addressCountry": "US"
   }
-  {% if inst.phone %},"telephone": "{{ inst.phone }}"{% endif %}
-  {% if inst.website %},"sameAs": "{{ inst.website }}"{% endif %}
+  {% if inst.show_direct_contact and inst.phone %},"telephone": "{{ inst.phone }}"{% endif %}
+  {% if inst.show_direct_contact and inst.website %},"sameAs": "{{ inst.website }}"{% endif %}
   {% if inst.google_rating and inst.total_reviews %}
   ,"aggregateRating": {
     "@type": "AggregateRating",
@@ -141,7 +132,6 @@ footer a{color:#f59e0b}
 </script>
 {% endfor %}
 
-<!-- FAQ JSON-LD -->
 {% if faqs %}
 <script type="application/ld+json">
 {
@@ -166,7 +156,6 @@ footer a{color:#f59e0b}
 </head>
 <body>
 
-<!-- Header -->
 <header>
   <div class="container">
     <a href="/" class="logo">Find<span>Solar</span>Installers</a>
@@ -174,28 +163,26 @@ footer a{color:#f59e0b}
       <a href="/">Home</a>
       <a href="/search">Search</a>
       <a href="/categories">Services</a>
-      <a href="/register">List Your Company</a>
+      <a href="/for-installers">For Installers</a>
     </nav>
   </div>
 </header>
 
-<!-- Hero -->
 <div class="hero">
   <div class="container">
-    <h1>{{ page.h1 | replace("—", "— <em>") }}</em></h1>
+    <h1>{{ page.h1 }}</h1>
     <p>{{ page.meta_description }}</p>
   </div>
 </div>
 
-<!-- Stats -->
 <div class="container">
   <div class="stats">
     <div>
       <div class="num">{{ count }}</div>
-      <div class="label">Verified Installers</div>
+      <div class="label">Active Installers</div>
     </div>
     <div>
-      <div class="num">{% if avg_rating %}{{ avg_rating }}★{% else %}N/A{% endif %}</div>
+      <div class="num">{% if avg_rating %}{{ avg_rating }}&#9733;{% else %}N/A{% endif %}</div>
       <div class="label">Average Rating</div>
     </div>
     <div>
@@ -205,24 +192,29 @@ footer a{color:#f59e0b}
   </div>
 </div>
 
-<!-- Installer Listings -->
 <section>
   <div class="container">
     <h2>{{ count }} Solar Installer{{ "s" if count != 1 else "" }}{% if parsed.get("city") %} in {{ parsed.city }}, {{ parsed.state_code }}{% elif parsed.get("state") %} in {{ parsed.state }}{% endif %}</h2>
+    <p class="section-intro">
+      Compare local companies, request quotes, and prioritize verified featured profiles when available.
+    </p>
 
     {% if installers %}
       {% for inst in installers %}
       <div class="installer-card">
         <h3><a href="/listing/{{ inst.slug }}">{{ inst.name }}</a></h3>
         <div class="card-meta">
+          {% if inst.is_featured_public %}
+            <span class="tag tag-featured">Verified Featured</span>
+          {% endif %}
           {% if inst.city or inst.state %}
-            <span>📍 {{ [inst.city, inst.state] | select | join(", ") }}</span>
+            <span>Location: {{ [inst.city, inst.state] | select | join(", ") }}</span>
           {% endif %}
           {% if inst.google_rating %}
-            <span class="rating">★ {{ inst.google_rating }} ({{ inst.total_reviews }} reviews)</span>
+            <span class="rating">&#9733; {{ inst.google_rating }} ({{ inst.total_reviews }} reviews)</span>
           {% endif %}
           {% if inst.years_in_business %}
-            <span>{{ inst.years_in_business }}+ years</span>
+            <span>{{ inst.years_in_business }}+ years in business</span>
           {% endif %}
         </div>
         <div>
@@ -233,34 +225,33 @@ footer a{color:#f59e0b}
           {% endif %}
           {% if inst.certifications %}
             {% for c in inst.certifications[:2] %}
-              <span class="tag tag-cert">🛡 {{ c }}</span>
+              <span class="tag tag-cert">{{ c }}</span>
             {% endfor %}
           {% endif %}
           {% if inst.financing_available %}
-            <span class="tag tag-finance">Financing</span>
+            <span class="tag tag-finance">Financing Available</span>
           {% endif %}
         </div>
-        <a href="/listing/{{ inst.slug }}" class="cta-btn">View Profile & Get Quote</a>
+        <a href="/listing/{{ inst.slug }}" class="cta-btn">View Profile and Request Quote</a>
       </div>
       {% endfor %}
 
       {% if count > 20 %}
         <p style="text-align:center;margin-top:1.5rem">
-          <a href="/search?{% if parsed.get('state') %}state={{ parsed.state }}{% endif %}{% if parsed.get('service') %}&services={{ parsed.service }}{% endif %}" class="cta-btn" style="background:#0f172a">
-            View All {{ count }} Installers →
+          <a href="/search?{% if parsed.get('state') %}state={{ parsed.state }}{% endif %}{% if parsed.get('service') %}&services={{ parsed.service }}{% endif %}" class="cta-btn secondary">
+            View All {{ count }} Installers &rarr;
           </a>
         </p>
       {% endif %}
     {% else %}
-      <div style="text-align:center;padding:3rem;background:#fff;border-radius:.75rem;border:1px solid #e2e8f0">
-        <p style="font-size:1.1rem;color:#64748b">No installers found yet for this area.</p>
+      <div style="text-align:center;padding:3rem;background:#fff;border-radius:.9rem;border:1px solid #e2e8f0">
+        <p style="font-size:1.05rem;color:#64748b">No installers found yet for this area.</p>
         <p style="margin-top:.5rem"><a href="/search">Browse all installers</a></p>
       </div>
     {% endif %}
   </div>
 </section>
 
-<!-- FAQs -->
 {% if faqs and count >= 1 %}
 <section style="background:#fff;border-top:1px solid #e2e8f0">
   <div class="container">
@@ -275,7 +266,6 @@ footer a{color:#f59e0b}
 </section>
 {% endif %}
 
-<!-- Related Pages -->
 {% if related %}
 <section>
   <div class="container">
@@ -289,26 +279,23 @@ footer a{color:#f59e0b}
 </section>
 {% endif %}
 
-<!-- CTA Banner -->
 <div class="container">
   <div class="cta-banner">
-    <h2>Are You a Solar Installer?</h2>
-    <p>List your company for free and reach homeowners searching for solar installation services.</p>
-    <a href="/register" class="cta-btn">List Your Company Free</a>
+    <h2>Are You a Solar Installer in This Market?</h2>
+    <p>Featured spots are sold manually. Claim your profile, get verified, and unlock direct contact visibility on the directory.</p>
+    <a href="/for-installers" class="cta-btn">Get Featured</a>
   </div>
 </div>
 
-<!-- Footer -->
 <footer>
   <div class="container">
-    <p>&copy; {{ 2026 }} FindSolarInstallers.xyz — Find trusted solar installers near you.</p>
+    <p>&copy; {{ 2026 }} Find Solar Installers. Find trusted solar installers near you.</p>
     <p style="margin-top:.5rem">
-      <a href="/">Home</a> · <a href="/search">Search</a> · <a href="/categories">Services</a> · <a href="/sitemap.xml">Sitemap</a>
+      <a href="/">Home</a> &middot; <a href="/search">Search</a> &middot; <a href="/categories">Services</a> &middot; <a href="/for-installers">For Installers</a> &middot; <a href="/sitemap.xml">Sitemap</a>
     </p>
   </div>
 </footer>
 
-<!-- Analytics beacon -->
 <script>
 (function(){
   if(navigator.doNotTrack==="1")return;

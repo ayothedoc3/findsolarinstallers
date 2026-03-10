@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -7,11 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.models.contact_request import ContactRequest
 from app.models.listing import Listing, ListingImage
 from app.models.listing_claim import ListingClaim
+from app.models.pageview import Pageview
+from app.models.plan import ListingPlan
 from app.models.user import User
 from app.routers.auth import require_role
-from app.schemas.listing import ListingBrief, PaginatedResponse
+from app.services.marketplace import is_featured_listing
 
 router = APIRouter(prefix="/api/admin/listings", tags=["admin-listings"])
 
@@ -27,7 +30,11 @@ async def list_all_listings(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Listing)
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    plan_result = await db.execute(select(ListingPlan))
+    plan_lookup = {plan.id: plan for plan in plan_result.scalars().all()}
+
+    query = select(Listing).options(selectinload(Listing.plan))
 
     if status:
         query = query.where(Listing.status == status)
@@ -65,6 +72,18 @@ async def list_all_listings(
             ).limit(1)
         )
         primary_img = img_result.scalar_one_or_none()
+        quote_requests_30d = (await db.execute(
+            select(func.count(ContactRequest.id)).where(
+                ContactRequest.listing_id == l.id,
+                ContactRequest.created_at >= since,
+            )
+        )).scalar() or 0
+        views_30d = (await db.execute(
+            select(func.count(Pageview.id)).where(
+                Pageview.path == f"/listing/{l.slug}",
+                Pageview.created_at >= since,
+            )
+        )).scalar() or 0
         item = {
             "id": l.id, "name": l.name, "slug": l.slug, "city": l.city,
             "state": l.state,
@@ -76,6 +95,13 @@ async def list_all_listings(
             "primary_image": primary_img,
             "owner_id": l.owner_id,
             "owner_email": owner_map.get(l.owner_id) if l.owner_id else None,
+            "plan_id": l.plan_id,
+            "plan_name": l.plan.name if l.plan else "Free Profile",
+            "is_featured": is_featured_listing(l, plan_lookup),
+            "expires_at": l.expires_at.isoformat() if l.expires_at else None,
+            "featured_until": l.featured_until.isoformat() if l.featured_until else None,
+            "views_30d": int(views_30d),
+            "quote_requests_30d": int(quote_requests_30d),
         }
         items.append(item)
 
@@ -92,7 +118,7 @@ async def update_listing_status(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    if status not in ("active", "pending", "expired", "suspended"):
+    if status not in ("active", "pending", "pending_review", "expired", "suspended"):
         raise HTTPException(status_code=400, detail="Invalid status")
     result = await db.execute(select(Listing).where(Listing.id == listing_id))
     listing = result.scalar_one_or_none()
@@ -150,6 +176,51 @@ async def assign_owner(
 
     await db.commit()
     return {"ok": True, "owner_id": listing.owner_id}
+
+
+class UpdateListingPlanRequest(BaseModel):
+    plan_id: int
+    expires_at: datetime | None = None
+    featured_until: datetime | None = None
+
+
+@router.put("/{listing_id}/plan")
+async def update_listing_plan(
+    listing_id: int,
+    data: UpdateListingPlanRequest,
+    _admin: User = Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    listing_result = await db.execute(select(Listing).where(Listing.id == listing_id))
+    listing = listing_result.scalar_one_or_none()
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    plan_result = await db.execute(select(ListingPlan).where(ListingPlan.id == data.plan_id))
+    plan = plan_result.scalar_one_or_none()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+
+    listing.plan_id = plan.id
+    if plan.is_featured:
+        ends_at = data.featured_until or data.expires_at or (
+            datetime.now(timezone.utc) + timedelta(days=plan.interval_days)
+        )
+        listing.featured_until = ends_at
+        listing.expires_at = data.expires_at or ends_at
+        if listing.status in ("pending_review", "pending", "expired"):
+            listing.status = "active"
+    else:
+        listing.featured_until = None
+        listing.expires_at = data.expires_at
+
+    await db.commit()
+    return {
+        "ok": True,
+        "plan_id": listing.plan_id,
+        "expires_at": listing.expires_at.isoformat() if listing.expires_at else None,
+        "featured_until": listing.featured_until.isoformat() if listing.featured_until else None,
+    }
 
 
 @router.post("/bulk-assign-owner")

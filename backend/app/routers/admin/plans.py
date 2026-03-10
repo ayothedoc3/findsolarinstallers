@@ -16,7 +16,11 @@ async def list_plans(
     user: User = Depends(require_role("admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(ListingPlan).order_by(ListingPlan.price_cents))
+    result = await db.execute(
+        select(ListingPlan)
+        .where(ListingPlan.is_active.is_(True))
+        .order_by(ListingPlan.price_cents)
+    )
     return result.scalars().all()
 
 

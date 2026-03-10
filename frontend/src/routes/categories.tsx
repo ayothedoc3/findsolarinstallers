@@ -3,6 +3,7 @@ import { rootRoute } from "./__root";
 import { useQuery } from "@tanstack/react-query";
 import { Sun, Zap, Shield, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
+import { useMarketplaceData } from "@/lib/marketplace";
 import { usePageTitle } from "@/lib/seo";
 
 export const categoriesRoute = createRoute({
@@ -33,6 +34,8 @@ function getIcon(name: string | null) {
 
 function CategoriesPage() {
   usePageTitle("Solar Service Categories");
+  const { data: marketplace } = useMarketplaceData();
+  const launchState = marketplace?.launch_state || "our launch market";
 
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ["categories"],
@@ -49,8 +52,8 @@ function CategoriesPage() {
           Browse Solar Services
         </h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Explore our categories to find the right solar installer for your
-          specific needs.
+          Explore the service types we are prioritizing in {launchState}, then compare the
+          local installers that actually match your project.
         </p>
       </div>
 
@@ -107,17 +110,17 @@ function CategoriesPage() {
         <div className="mt-16 text-center">
           <div className="bg-primary text-primary-foreground rounded-2xl p-10">
             <h2 className="font-heading text-2xl font-bold mb-3">
-              {root.name}
+              Get Featured in {launchState}
             </h2>
             <p className="text-slate-300 mb-6 max-w-xl mx-auto">
-              {root.description ||
-                "Find the best solar installation companies across all service categories."}
+              If you install solar in {launchState}, we are manually onboarding featured
+              profiles now.
             </p>
             <a
-              href="/search"
+              href="/for-installers"
               className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6 py-3 rounded-xl transition-colors"
             >
-              Browse All Installers <ChevronRight className="w-5 h-5" />
+              Claim Your Profile <ChevronRight className="w-5 h-5" />
             </a>
           </div>
         </div>

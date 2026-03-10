@@ -1,6 +1,8 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -15,6 +17,7 @@ BASE_URL = "https://findsolarinstallers.xyz"
 
 @router.get("/sitemap.xml", response_class=Response)
 async def sitemap(db: AsyncSession = Depends(get_db)):
+    now = datetime.now(timezone.utc)
     urls = []
 
     # Static pages
@@ -22,6 +25,10 @@ async def sitemap(db: AsyncSession = Depends(get_db)):
         ("", "1.0", "daily"),
         ("/search", "0.9", "daily"),
         ("/categories", "0.8", "weekly"),
+        ("/for-installers", "0.8", "weekly"),
+        ("/about", "0.5", "monthly"),
+        ("/contact", "0.5", "monthly"),
+        ("/privacy", "0.3", "monthly"),
         ("/login", "0.3", "monthly"),
         ("/register", "0.3", "monthly"),
     ]
@@ -35,7 +42,10 @@ async def sitemap(db: AsyncSession = Depends(get_db)):
     # All active listings
     result = await db.execute(
         select(Listing.slug, Listing.updated_at)
-        .where(Listing.status == "active")
+        .where(
+            Listing.status == "active",
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+        )
         .order_by(Listing.updated_at.desc())
     )
     for row in result.all():

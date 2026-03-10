@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.services.marketplace import DEFAULT_LAUNCH_STATE, FEATURED_PLAN_ID, FREE_PLAN_ID, PUBLIC_PLAN_SPECS
 
 
 @asynccontextmanager
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
     from app.models.category import Category
     from app.models.plan import ListingPlan
     from app.models.contact_request import ContactRequest  # noqa: F401
+    from app.models.installer_inquiry import InstallerInquiry  # noqa: F401
     from app.models.api_key import ApiKey  # noqa: F401
     from app.models.site_setting import SiteSetting
     from app.models.pipeline import PipelineRun, RegionSchedule, ListingSource  # noqa: F401
@@ -32,6 +34,12 @@ async def lifespan(app: FastAPI):
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS consent BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS page_path VARCHAR(500)"))
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS utm_source VARCHAR(100)"))
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS utm_medium VARCHAR(100)"))
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(100)"))
+        await conn.execute(text("ALTER TABLE contact_requests ADD COLUMN IF NOT EXISTS ip_hash VARCHAR(64)"))
         # Ensure full-text trigger exists even when the app is started directly
         # (Dockerfile CMD uses uvicorn, which bypasses backend/start.sh -> seed.py).
         await conn.execute(text("""
@@ -78,15 +86,6 @@ async def lifespan(app: FastAPI):
                     Category(id=6, parent_id=1, name="Solar Pool Heating", slug="solar-pool-heating", icon="Waves", sort_order=5),
                     Category(id=7, parent_id=1, name="EV Charger + Solar", slug="ev-charger-solar", icon="Zap", sort_order=6),
                 ])
-                # Plans
-                db.add_all([
-                    ListingPlan(id=1, name="Free", price_cents=0, interval_days=90, max_images=3, is_featured=False,
-                                features=["Basic listing", "3 photos", "90-day visibility"]),
-                    ListingPlan(id=2, name="Pro", price_cents=2900, interval_days=365, max_images=10, is_featured=True,
-                                features=["10 photos", "Featured badge", "Priority search", "365-day visibility"]),
-                    ListingPlan(id=3, name="Premium", price_cents=7900, interval_days=365, max_images=50, is_featured=True,
-                                features=["Unlimited photos", "Top placement", "Analytics", "365-day visibility"]),
-                ])
                 # Region schedule (50 states + DC)
                 states = [
                     ("AL","Alabama",5),("AK","Alaska",3),("AZ","Arizona",9),("AR","Arkansas",4),
@@ -107,9 +106,10 @@ async def lifespan(app: FastAPI):
                     db.add(RegionSchedule(state_code=code, state_name=name, priority=priority))
                 # Site settings
                 db.add_all([
-                    SiteSetting(key="site_name", value="SolarListings", type="string"),
-                    SiteSetting(key="site_tagline", value="Find Solar Installers Near You", type="string"),
+                    SiteSetting(key="site_name", value="Find Solar Installers", type="string"),
+                    SiteSetting(key="site_tagline", value="Verified featured solar installers in your launch market", type="string"),
                     SiteSetting(key="contact_email", value="info@findsolarinstallers.xyz", type="string"),
+                    SiteSetting(key="launch_state", value=DEFAULT_LAUNCH_STATE, type="string"),
                 ])
                 await db.commit()
                 logger.info("Database seeded successfully!")
@@ -125,6 +125,39 @@ async def lifespan(app: FastAPI):
                 admin.role = "admin"
                 await db.commit()
                 logger.info(f"Admin password synced (email={settings.admin_email}, pw_len={len(settings.admin_password)})")
+
+            # Keep the public plans canonical so the offer matches the live product.
+            plan_result = await db.execute(select(ListingPlan))
+            existing_plans = {plan.id: plan for plan in plan_result.scalars().all()}
+            active_ids = set()
+            for spec in PUBLIC_PLAN_SPECS:
+                plan = existing_plans.get(spec["id"])
+                if not plan:
+                    plan = ListingPlan(id=spec["id"])
+                    db.add(plan)
+                for key, value in spec.items():
+                    setattr(plan, key, value)
+                active_ids.add(spec["id"])
+            for plan in existing_plans.values():
+                if plan.id not in active_ids:
+                    plan.is_active = False
+                    plan.is_featured = False
+            await db.commit()
+
+            # Collapse any old Premium listings into the new featured offer and backfill free plans.
+            await db.execute(text(f"UPDATE listings SET plan_id = {FEATURED_PLAN_ID} WHERE plan_id = 3"))
+            await db.execute(text(f"UPDATE listings SET plan_id = {FREE_PLAN_ID} WHERE plan_id IS NULL"))
+            await db.execute(text("UPDATE site_settings SET value = :value WHERE key = 'site_name'"), {"value": "Find Solar Installers"})
+            await db.execute(
+                text("UPDATE site_settings SET value = :value WHERE key = 'site_tagline'"),
+                {"value": "Verified featured solar installers in your launch market"},
+            )
+            launch_setting = (await db.execute(
+                select(SiteSetting).where(SiteSetting.key == "launch_state")
+            )).scalar_one_or_none()
+            if not launch_setting:
+                db.add(SiteSetting(key="launch_state", value=DEFAULT_LAUNCH_STATE, type="string"))
+            await db.commit()
     except Exception as e:
         logger.error(f"Seed failed: {e}")
 
@@ -154,15 +187,20 @@ from app.routers.admin import categories as admin_categories
 from app.routers.admin import plans as admin_plans
 from app.routers.admin import settings as admin_settings
 from app.routers.admin import stats as admin_stats
+from app.routers.admin import installer_inquiries as admin_installer_inquiries
 from app.routers import stripe as stripe_router
 from app.routers import seo as seo_router
 from app.routers import pseo as pseo_router
 from app.routers import analytics as analytics_router
+from app.routers import plans as plans_router
+from app.routers import installer_interest as installer_interest_router
 
 app.include_router(auth.router)
 app.include_router(listings.router)
 app.include_router(categories.router)
 app.include_router(contact.router)
+app.include_router(plans_router.router)
+app.include_router(installer_interest_router.router)
 app.include_router(search.router)
 app.include_router(dashboard.router)
 app.include_router(admin_api_keys.router)
@@ -173,6 +211,7 @@ app.include_router(admin_categories.router)
 app.include_router(admin_plans.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_stats.router)
+app.include_router(admin_installer_inquiries.router)
 app.include_router(stripe_router.router)
 app.include_router(seo_router.router)
 app.include_router(analytics_router.router)
@@ -182,4 +221,3 @@ app.include_router(pseo_router.router)
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-

@@ -1,8 +1,8 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,10 +11,13 @@ from app.models.contact_request import ContactRequest
 from app.models.lead_purchase import LeadPurchase
 from app.models.listing import Listing, ListingCategory, ListingImage
 from app.models.category import Category
+from app.models.pageview import Pageview
+from app.models.plan import ListingPlan
 from app.models.user import User
 from app.routers.auth import get_current_user
 from app.schemas.contact import ContactResponse
 from app.schemas.listing import ListingCreate, ListingResponse, ListingUpdate
+from app.services.marketplace import FREE_PLAN_ID, is_featured_listing
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -26,19 +29,60 @@ def slugify(text: str) -> str:
     return re.sub(r"-+", "-", text).strip("-")
 
 
+async def _get_plan_lookup(db: AsyncSession) -> dict[int, ListingPlan]:
+    result = await db.execute(select(ListingPlan))
+    return {plan.id: plan for plan in result.scalars().all()}
+
+
+async def _listing_metrics(db: AsyncSession, listing: Listing) -> tuple[int, int]:
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    views = (await db.execute(
+        select(func.count(Pageview.id)).where(
+            Pageview.path == f"/listing/{listing.slug}",
+            Pageview.created_at >= since,
+        )
+    )).scalar() or 0
+    quote_requests = (await db.execute(
+        select(func.count(ContactRequest.id)).where(
+            ContactRequest.listing_id == listing.id,
+            ContactRequest.created_at >= since,
+        )
+    )).scalar() or 0
+    return int(views), int(quote_requests)
+
+
 @router.get("/listings")
 async def my_listings(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    plan_lookup = await _get_plan_lookup(db)
+    now = datetime.now(timezone.utc)
     result = await db.execute(
         select(Listing)
         .where(Listing.owner_id == user.id)
-        .options(selectinload(Listing.images), selectinload(Listing.categories))
+        .options(selectinload(Listing.images), selectinload(Listing.categories), selectinload(Listing.plan))
         .order_by(Listing.created_at.desc())
     )
     listings = result.scalars().all()
-    return [ListingResponse.model_validate(l) for l in listings]
+    items = []
+    for listing in listings:
+        payload = ListingResponse.model_validate(listing).model_dump()
+        views_30d, quote_requests_30d = await _listing_metrics(db, listing)
+        plan_name = listing.plan.name if listing.plan else "Free Profile"
+        featured = is_featured_listing(listing, plan_lookup, now)
+        payload.update({
+            "plan_name": plan_name,
+            "current_plan": plan_name,
+            "is_featured": featured,
+            "show_direct_contact": featured,
+            "verification_label": "Verified Featured Profile" if featured else "Basic Profile",
+            "views_30d": views_30d,
+            "quote_requests_30d": quote_requests_30d,
+            "expires_at": listing.expires_at.isoformat() if listing.expires_at else None,
+        })
+        items.append(payload)
+    return items
 
 
 @router.post("/listings", response_model=ListingResponse, status_code=201)
@@ -55,6 +99,7 @@ async def create_listing(
 
     listing = Listing(
         owner_id=user.id,
+        plan_id=FREE_PLAN_ID,
         name=data.name,
         slug=slug,
         description=data.description,
@@ -77,7 +122,7 @@ async def create_listing(
         free_consultation=data.free_consultation,
         system_size_range=data.system_size_range,
         service_area_radius=data.service_area_radius,
-        status="active",
+        status="pending_review",
     )
 
     if data.latitude and data.longitude:
@@ -96,9 +141,21 @@ async def create_listing(
     result = await db.execute(
         select(Listing)
         .where(Listing.id == listing.id)
-        .options(selectinload(Listing.images), selectinload(Listing.categories))
+        .options(selectinload(Listing.images), selectinload(Listing.categories), selectinload(Listing.plan))
     )
-    return result.scalar_one()
+    created_listing = result.scalar_one()
+    payload = ListingResponse.model_validate(created_listing).model_dump()
+    payload.update({
+        "plan_name": created_listing.plan.name if created_listing.plan else "Free Profile",
+        "current_plan": created_listing.plan.name if created_listing.plan else "Free Profile",
+        "is_featured": False,
+        "show_direct_contact": False,
+        "verification_label": "Basic Profile",
+        "views_30d": 0,
+        "quote_requests_30d": 0,
+        "expires_at": created_listing.expires_at.isoformat() if created_listing.expires_at else None,
+    })
+    return payload
 
 
 @router.put("/listings/{listing_id}", response_model=ListingResponse)
@@ -159,14 +216,23 @@ async def my_leads(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    plan_lookup = await _get_plan_lookup(db)
+    now = datetime.now(timezone.utc)
     # Get leads for all listings owned by user
-    listing_ids_result = await db.execute(
-        select(Listing.id).where(Listing.owner_id == user.id)
+    owned_listings_result = await db.execute(
+        select(Listing).options(selectinload(Listing.plan)).where(Listing.owner_id == user.id)
     )
-    listing_ids = [r[0] for r in listing_ids_result.all()]
+    owned_listings = owned_listings_result.scalars().all()
+    listing_ids = [listing.id for listing in owned_listings]
 
     if not listing_ids:
         return []
+
+    listing_map = {listing.id: listing for listing in owned_listings}
+    featured_listing_ids = {
+        listing.id for listing in owned_listings
+        if is_featured_listing(listing, plan_lookup, now)
+    }
 
     result = await db.execute(
         select(ContactRequest)
@@ -186,10 +252,12 @@ async def my_leads(
 
     responses = []
     for lead in leads:
-        is_unlocked = lead.id in unlocked_ids
+        listing = listing_map.get(lead.listing_id)
+        is_unlocked = lead.id in unlocked_ids or lead.listing_id in featured_listing_ids
         resp = ContactResponse(
             id=lead.id,
             listing_id=lead.listing_id,
+            listing_name=listing.name if listing else None,
             name=lead.name,
             email=lead.email if is_unlocked else None,
             phone=lead.phone if is_unlocked else None,
@@ -198,6 +266,7 @@ async def my_leads(
             zip_code=lead.zip_code,
             is_read=lead.is_read,
             is_unlocked=is_unlocked,
+            requires_featured_upgrade=not is_unlocked,
             created_at=lead.created_at,
         )
         responses.append(resp)
@@ -268,7 +337,11 @@ async def dashboard_stats(
     db: AsyncSession = Depends(get_db),
 ):
     active_listings = (await db.execute(
-        select(func.count(Listing.id)).where(Listing.owner_id == user.id, Listing.status == "active")
+        select(func.count(Listing.id)).where(
+            Listing.owner_id == user.id,
+            Listing.status == "active",
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= datetime.now(timezone.utc)),
+        )
     )).scalar() or 0
 
     listing_ids_result = await db.execute(select(Listing.id).where(Listing.owner_id == user.id))

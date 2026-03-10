@@ -3,6 +3,7 @@ import { rootRoute } from "./__root";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Star, MapPin, Shield } from "lucide-react";
 import { api } from "@/lib/api";
+import { useMarketplaceData } from "@/lib/marketplace";
 import { useState, useEffect } from "react";
 import { usePageTitle } from "@/lib/seo";
 
@@ -33,6 +34,7 @@ interface ListingBrief {
   certifications: string[];
   financing_available: boolean;
   primary_image: string | null;
+  is_featured: boolean;
 }
 
 interface SearchResults {
@@ -46,6 +48,8 @@ interface SearchResults {
 function SearchPage() {
   const search = searchRoute.useSearch();
   const navigate = useNavigate({ from: "/search" });
+  const { data: marketplace } = useMarketplaceData();
+  const launchState = marketplace?.launch_state || "our launch market";
 
   usePageTitle(
     search.state
@@ -124,6 +128,10 @@ function SearchPage() {
         Find Solar Installers
         {search.state && <span className="text-accent"> in {search.state}</span>}
       </h1>
+      <div className="bg-white rounded-xl border border-border p-4 mb-6 text-sm text-muted-foreground">
+        Verified Featured profiles are ranked first in {launchState}. Free profiles still
+        appear in search, but direct contact details stay hidden until a company upgrades.
+      </div>
 
       <div className="grid lg:grid-cols-4 gap-8">
         {/* Filters Sidebar */}
@@ -263,8 +271,13 @@ function SearchPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-heading text-lg font-semibold mb-1 truncate">
+                      <h3 className="font-heading text-lg font-semibold mb-1 truncate flex items-center gap-2">
                         {listing.name}
+                        {listing.is_featured && (
+                          <span className="inline-flex items-center rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                            Verified Featured
+                          </span>
+                        )}
                       </h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         {(listing.city || listing.state) && (

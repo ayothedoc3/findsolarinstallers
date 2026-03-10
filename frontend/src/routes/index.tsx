@@ -20,8 +20,15 @@ function HomePage() {
 
   const { data: stats } = useQuery({
     queryKey: ["stats"],
-    queryFn: () => api.get<{ total_listings: number; total_states: number; total_reviews: number }>("/stats"),
+    queryFn: () => api.get<{
+      total_listings: number;
+      total_states: number;
+      total_reviews: number;
+      launch_state: string;
+      active_featured_count: number;
+    }>("/stats"),
   });
+  const launchState = stats?.launch_state || "our launch market";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,12 +41,13 @@ function HomePage() {
       <section className="bg-primary text-primary-foreground py-20 px-4">
         <div className="max-w-5xl mx-auto text-center">
           <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-            Find Trusted Solar Installers{" "}
-            <span className="text-accent">Near You</span>
+            Find Trusted Solar Installers in{" "}
+            <span className="text-accent">{launchState}</span>
           </h1>
           <p className="text-lg md:text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
-            Compare top-rated solar companies, read verified reviews, and get
-            free quotes for your solar installation project.
+            We are focusing the marketplace on {launchState} first. Compare local solar
+            companies, prioritize verified featured profiles, and request quotes from real
+            installers instead of browsing a generic nationwide directory.
           </p>
 
           {/* Search Bar */}
@@ -65,16 +73,16 @@ function HomePage() {
       <section className="bg-white border-b border-border py-8">
         <div className="max-w-5xl mx-auto grid grid-cols-3 gap-4 text-center px-4">
           <div>
-            <div className="text-3xl font-bold text-primary font-heading">{stats?.total_listings?.toLocaleString() ?? "10,000+"}</div>
-            <div className="text-muted-foreground text-sm">Solar Installers</div>
+            <div className="text-3xl font-bold text-primary font-heading">{stats?.total_listings?.toLocaleString() ?? "0"}</div>
+            <div className="text-muted-foreground text-sm">Live Profiles</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-primary font-heading">{stats?.total_states ?? 50}</div>
-            <div className="text-muted-foreground text-sm">States Covered</div>
+            <div className="text-3xl font-bold text-primary font-heading">{stats?.active_featured_count ?? 0}</div>
+            <div className="text-muted-foreground text-sm">Featured Installers</div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-primary font-heading">{stats?.total_reviews?.toLocaleString() ?? "50,000+"}</div>
-            <div className="text-muted-foreground text-sm">Verified Reviews</div>
+            <div className="text-3xl font-bold text-primary font-heading">{launchState}</div>
+            <div className="text-muted-foreground text-sm">Launch State</div>
           </div>
         </div>
       </section>
@@ -140,18 +148,21 @@ function HomePage() {
       <section className="py-16 px-4">
         <div className="max-w-5xl mx-auto">
           <h2 className="font-heading text-3xl font-bold text-center mb-12">
-            Popular Locations
+            Why We Are Starting in {launchState}
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {["California", "Florida", "Texas", "Arizona", "New York", "Colorado", "North Carolina", "Massachusetts"].map((state) => (
-              <a
-                key={state}
-                href={`/search?state=${state}`}
-                className="flex items-center gap-3 p-4 rounded-xl bg-white border border-border hover:border-accent hover:shadow-md transition-all group"
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              "Local density beats fake nationwide scale",
+              "Featured profiles rank ahead of generic listings",
+              "Quote requests stay attributable to the profile page",
+            ].map((reason) => (
+              <div
+                key={reason}
+                className="flex items-center gap-3 p-5 rounded-xl bg-white border border-border"
               >
-                <MapPin className="w-5 h-5 text-accent" />
-                <span className="font-medium group-hover:text-accent transition-colors">{state}</span>
-              </a>
+                <MapPin className="w-5 h-5 text-accent shrink-0" />
+                <span className="font-medium">{reason}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -161,18 +172,19 @@ function HomePage() {
       <section className="bg-primary text-primary-foreground py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="font-heading text-3xl font-bold mb-4">
-            Are You a Solar Installer?
+            Are You a Solar Installer in {launchState}?
           </h2>
           <p className="text-lg text-slate-300 mb-8">
-            List your company for free and reach thousands of homeowners looking
-            for solar installation services.
+            Featured spots are being sold manually. Claim your profile, get verified, and
+            stand out before the launch market gets crowded.
           </p>
-          <a
-            href="/register"
+          <Link
+            to="/for-installers"
+            search={{ listing: "", state: "" }}
             className="inline-flex items-center gap-2 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-4 rounded-xl transition-colors text-lg"
           >
-            List Your Company <ArrowRight className="w-5 h-5" />
-          </a>
+            Get Featured in {launchState} <ArrowRight className="w-5 h-5" />
+          </Link>
         </div>
       </section>
     </>

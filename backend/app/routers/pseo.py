@@ -2,13 +2,15 @@
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select, update, and_
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.generated_page import GeneratedPage
@@ -19,6 +21,7 @@ from app.utils.pseo import (
     make_pseo_slug, parse_pseo_slug,
 )
 from app.routers.auth import require_role
+from app.services.marketplace import FEATURED_PLAN_ID, is_featured_listing, resolve_launch_state
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +73,15 @@ async def serve_pseo_page(slug: str, request: Request, db: AsyncSession = Depend
         await db.commit()
         await db.refresh(page)
     else:
-        # Increment hit count
-        await db.execute(
-            update(GeneratedPage)
-            .where(GeneratedPage.id == page.id)
-            .values(hit_count=GeneratedPage.hit_count + 1)
-        )
+        page.title = generate_title(parsed)
+        page.h1 = generate_h1(parsed)
+        page.meta_description = generate_meta_description(parsed, count, avg_rating)
+        page.installer_count = count
+        page.avg_rating = float(avg_rating) if avg_rating else None
+        page.total_reviews = total_reviews
+        page.hit_count += 1
         await db.commit()
+        await db.refresh(page)
 
     noindex = count < MIN_INSTALLERS
     faqs = generate_faqs(parsed, count, avg_rating)
@@ -107,10 +112,16 @@ async def generate_pages(
     _admin=Depends(require_role("admin")),
 ):
     """Pre-generate pSEO pages for all city+state combos and services."""
+    now = datetime.now(timezone.utc)
     # Get distinct city/state combinations
     result = await db.execute(
         select(Listing.city, Listing.state)
-        .where(Listing.status == "active", Listing.city.isnot(None), Listing.state.isnot(None))
+        .where(
+            Listing.status == "active",
+            Listing.city.isnot(None),
+            Listing.state.isnot(None),
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+        )
         .group_by(Listing.city, Listing.state)
     )
     locations = result.all()
@@ -118,7 +129,11 @@ async def generate_pages(
     # Get distinct states
     state_result = await db.execute(
         select(Listing.state)
-        .where(Listing.status == "active", Listing.state.isnot(None))
+        .where(
+            Listing.status == "active",
+            Listing.state.isnot(None),
+            or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+        )
         .group_by(Listing.state)
     )
     states = [r[0] for r in state_result.all()]
@@ -222,7 +237,13 @@ async def pseo_stats(
 
 async def _query_installers(db: AsyncSession, parsed: dict) -> tuple[list, int, float | None, int]:
     """Query matching installers and return (list, count, avg_rating, total_reviews)."""
-    conditions = [Listing.status == "active"]
+    now = datetime.now(timezone.utc)
+    launch = await resolve_launch_state(db)
+    launch_state = str(launch["state"] or launch["display_name"] or "")
+    conditions = [
+        Listing.status == "active",
+        or_(Listing.expires_at.is_(None), Listing.expires_at >= now),
+    ]
 
     state = parsed.get("state")
     city = parsed.get("city")
@@ -238,7 +259,19 @@ async def _query_installers(db: AsyncSession, parsed: dict) -> tuple[list, int, 
     if service:
         conditions.append(Listing.services_offered.any(service))
 
-    base_q = select(Listing).where(and_(*conditions))
+    featured_rank = case(
+        (
+            and_(
+                Listing.plan_id == FEATURED_PLAN_ID,
+                Listing.featured_until.isnot(None),
+                Listing.featured_until >= now,
+                func.lower(Listing.state) == launch_state.lower(),
+            ),
+            1,
+        ),
+        else_=0,
+    )
+    base_q = select(Listing).options(selectinload(Listing.plan)).where(and_(*conditions))
 
     # Get stats
     stats_q = select(
@@ -253,9 +286,17 @@ async def _query_installers(db: AsyncSession, parsed: dict) -> tuple[list, int, 
 
     # Get installer list (top 20 by rating)
     result = await db.execute(
-        base_q.order_by(Listing.google_rating.desc().nulls_last()).limit(20)
+        base_q.order_by(
+            featured_rank.desc(),
+            Listing.google_rating.desc().nulls_last(),
+            Listing.total_reviews.desc(),
+            Listing.created_at.desc(),
+        ).limit(20)
     )
     installers = result.scalars().all()
+    for installer in installers:
+        installer.is_featured_public = is_featured_listing(installer, now=now)
+        installer.show_direct_contact = installer.is_featured_public
 
     return installers, count, avg_rating, total_reviews
 

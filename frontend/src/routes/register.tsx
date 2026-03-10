@@ -45,7 +45,7 @@ function RegisterPage() {
           Create Account
         </h1>
         <p className="text-center text-muted-foreground mb-8">
-          List your solar company for free
+          Use an owner account after your profile has been reviewed or claimed
         </p>
 
         {error && (
@@ -119,7 +119,7 @@ function RegisterPage() {
             disabled={loading}
             className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold py-3 rounded-lg transition-colors disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create Free Account"}
+            {loading ? "Creating account..." : "Create Owner Account"}
           </button>
         </form>
 

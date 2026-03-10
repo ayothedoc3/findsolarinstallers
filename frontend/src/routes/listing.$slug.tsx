@@ -2,6 +2,7 @@ import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { getUtmPayload, useMarketplaceData } from "@/lib/marketplace";
 import {
   Star,
   MapPin,
@@ -55,11 +56,17 @@ interface Listing {
   categories: { id: number; name: string; slug: string }[];
   status: string;
   created_at: string;
+  plan_name?: string | null;
+  current_plan?: string | null;
+  is_featured?: boolean;
+  show_direct_contact?: boolean;
+  verification_label?: string | null;
   is_claimed?: boolean;
 }
 
 function ListingDetailPage() {
   const { slug } = listingDetailRoute.useParams();
+  const { data: marketplace } = useMarketplaceData();
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactForm, setContactForm] = useState({
     name: "",
@@ -68,8 +75,11 @@ function ListingDetailPage() {
     message: "",
     project_type: "",
     zip_code: "",
+    consent: false,
+    hp: "",
   });
   const [contactSubmitted, setContactSubmitted] = useState(false);
+  const [contactError, setContactError] = useState("");
   const [showClaimForm, setShowClaimForm] = useState(false);
   const [claimNote, setClaimNote] = useState("");
   const [claimSubmitted, setClaimSubmitted] = useState(false);
@@ -81,6 +91,7 @@ function ListingDetailPage() {
 
   // SEO
   const location = listing ? [listing.city, listing.state].filter(Boolean).join(", ") : "";
+  const launchState = marketplace?.launch_state || listing?.state || "our launch market";
   usePageTitle(listing ? `${listing.name} — Solar Installer in ${location}` : "");
 
   const jsonLd = useMemo(() => {
@@ -123,12 +134,18 @@ function ListingDetailPage() {
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!listing) return;
+    setContactError("");
     try {
-      await api.post("/contact", { listing_id: listing.id, ...contactForm });
+      await api.post("/contact", {
+        listing_id: listing.id,
+        ...contactForm,
+        page_path: window.location.pathname,
+        ...getUtmPayload(window.location.search),
+      });
       setContactSubmitted(true);
       setShowContactForm(false);
-    } catch {
-      // Handle error
+    } catch (err) {
+      setContactError((err as Error)?.message || "Failed to submit your request.");
     }
   };
 
@@ -187,9 +204,19 @@ function ListingDetailPage() {
           <div className="bg-white rounded-xl border border-border p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="font-heading text-2xl md:text-3xl font-bold mb-2">
-                  {listing.name}
-                </h1>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <h1 className="font-heading text-2xl md:text-3xl font-bold">
+                    {listing.name}
+                  </h1>
+                  <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                    listing.is_featured
+                      ? "bg-accent/10 text-accent"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    <Shield className="w-3.5 h-3.5" />
+                    {listing.verification_label || "Basic Profile"}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" />
                   <span>
@@ -233,26 +260,45 @@ function ListingDetailPage() {
 
             {/* Contact Info */}
             <div className="grid sm:grid-cols-2 gap-3">
-              {listing.phone && (
+              {listing.show_direct_contact && listing.phone && (
                 <a href={`tel:${listing.phone}`} className="flex items-center gap-2 text-sm p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
                   <Phone className="w-4 h-4 text-accent" />
                   <span>{listing.phone}</span>
                 </a>
               )}
-              {listing.email && (
+              {listing.show_direct_contact && listing.email && (
                 <a href={`mailto:${listing.email}`} className="flex items-center gap-2 text-sm p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
                   <Mail className="w-4 h-4 text-accent" />
                   <span>{listing.email}</span>
                 </a>
               )}
-              {listing.website && (
+              {listing.show_direct_contact && listing.website && (
                 <a href={listing.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm p-3 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
                   <Globe className="w-4 h-4 text-accent" />
                   <span>Visit Website</span>
                 </a>
               )}
+              {!listing.show_direct_contact && (
+                <div className="sm:col-span-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                  Direct phone, email, and website links are only shown on Verified Featured
+                  profiles. Use the quote form so the request stays attributable.
+                </div>
+              )}
             </div>
           </div>
+
+          {listing.is_featured && listing.images.length > 0 && (
+            <div className="bg-white rounded-xl border border-border p-6">
+              <h2 className="font-heading text-xl font-semibold mb-4">Profile Gallery</h2>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {listing.images.slice(0, 4).map((image) => (
+                  <div key={image.id} className="overflow-hidden rounded-xl border border-border bg-muted">
+                    <img src={image.url} alt={listing.name} className="h-48 w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           {listing.description && (
@@ -358,6 +404,21 @@ function ListingDetailPage() {
         {/* Sidebar */}
         <aside className="lg:col-span-1">
           <div className="sticky top-20 space-y-4">
+            <div className={`rounded-xl border p-5 ${
+              listing.is_featured
+                ? "border-accent/30 bg-accent/5"
+                : "border-border bg-white"
+            }`}>
+              <h3 className="font-heading text-lg font-semibold mb-2">
+                {listing.verification_label || "Basic Profile"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {listing.is_featured
+                  ? `This installer is part of the paid featured launch in ${launchState}. Direct contact details are visible and dashboard proof is enabled.`
+                  : "This is a basic directory profile. Direct contact details stay hidden until the installer upgrades to a featured placement."}
+              </p>
+            </div>
+
             {/* CTA Card */}
             <div className="bg-white rounded-xl border border-border p-6">
               <h3 className="font-heading text-lg font-semibold mb-2">
@@ -423,6 +484,30 @@ function ListingDetailPage() {
                     onChange={(e) => setContactForm((p) => ({ ...p, message: e.target.value }))}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm min-h-[80px]"
                   />
+                  <input
+                    type="text"
+                    value={contactForm.hp}
+                    onChange={(e) => setContactForm((p) => ({ ...p, hp: e.target.value }))}
+                    className="hidden"
+                    tabIndex={-1}
+                    autoComplete="off"
+                  />
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={contactForm.consent}
+                      onChange={(e) => setContactForm((p) => ({ ...p, consent: e.target.checked }))}
+                      className="mt-0.5"
+                      required
+                    />
+                    <span>
+                      I consent to sharing my information with this installer for follow-up
+                      about my solar project.
+                    </span>
+                  </label>
+                  {contactError && (
+                    <p className="text-xs text-red-600">{contactError}</p>
+                  )}
                   <button
                     type="submit"
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold py-3 rounded-lg transition-colors"
@@ -447,7 +532,7 @@ function ListingDetailPage() {
             </div>
 
             {/* Quick Facts */}
-            {listing.phone && (
+            {listing.show_direct_contact && listing.phone && (
               <a
                 href={`tel:${listing.phone}`}
                 className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-xl transition-colors"
@@ -460,13 +545,24 @@ function ListingDetailPage() {
             {/* Claim Listing */}
             {!listing.is_claimed && (
               <div className="bg-white rounded-xl border border-border p-4">
+                <a
+                  href={`/for-installers?listing=${listing.slug}&state=${encodeURIComponent(listing.state || launchState)}`}
+                  className="flex items-center justify-center gap-2 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground hover:bg-accent/90"
+                >
+                  <Building2 className="w-4 h-4" />
+                  Claim This Profile
+                </a>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  We verify ownership and onboard featured placements manually.
+                </p>
+
                 {claimSubmitted ? (
-                  <div className="text-center py-2">
+                  <div className="text-center py-2 mt-3">
                     <div className="text-green-700 font-semibold text-sm mb-1">Claim Submitted</div>
                     <p className="text-xs text-muted-foreground">An admin will review your claim shortly.</p>
                   </div>
                 ) : showClaimForm ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 mt-4">
                     <h4 className="font-semibold text-sm">Claim this listing</h4>
                     <p className="text-xs text-muted-foreground">
                       Prove you own this business to manage leads and receive customer inquiries.
@@ -501,10 +597,9 @@ function ListingDetailPage() {
                 ) : (
                   <button
                     onClick={() => setShowClaimForm(true)}
-                    className="flex items-center justify-center gap-2 w-full text-sm text-muted-foreground hover:text-foreground py-2 transition-colors"
+                    className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground py-2 transition-colors"
                   >
-                    <Building2 className="w-4 h-4" />
-                    Is this your business? Claim it
+                    Already have an owner account? Submit an authenticated claim
                   </button>
                 )}
               </div>

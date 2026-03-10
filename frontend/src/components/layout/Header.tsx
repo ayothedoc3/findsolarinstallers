@@ -2,12 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { Sun, Menu, X, User, Shield, LogOut } from "lucide-react";
 import { useState } from "react";
 import { isAuthenticated, getUserRole, logout } from "@/lib/auth";
+import { useMarketplaceData } from "@/lib/marketplace";
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const authed = isAuthenticated();
   const role = getUserRole();
   const isAdmin = role === "admin";
+  const { data } = useMarketplaceData();
+  const launchState = data?.launch_state || "our launch market";
 
   return (
     <header className="bg-white border-b border-border sticky top-0 z-50">
@@ -15,18 +18,21 @@ export function Header() {
         <Link to="/" className="flex items-center gap-2">
           <Sun className="w-8 h-8 text-accent" />
           <span className="font-heading text-xl font-bold text-primary">
-            SolarListings
+            Find Solar Installers
           </span>
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6">
-          <a href="/search" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/search" search={{ q: "", state: "", services: "", min_rating: undefined, financing: undefined, sort: "rating", page: 1 }} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Find Installers
-          </a>
-          <a href="/categories" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          </Link>
+          <Link to="/categories" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Categories
-          </a>
+          </Link>
+          <Link to="/for-installers" search={{ listing: "", state: "" }} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            For Installers
+          </Link>
           {authed ? (
             <div className="flex items-center gap-3">
               {isAdmin && (
@@ -49,8 +55,8 @@ export function Header() {
               <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Sign In
               </Link>
-              <Link to="/register" className="text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors">
-                List Your Company
+              <Link to="/for-installers" search={{ listing: "", state: "" }} className="text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors">
+                Get Featured in {launchState}
               </Link>
             </div>
           )}
@@ -70,6 +76,9 @@ export function Header() {
           </a>
           <a href="/categories" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
             Categories
+          </a>
+          <a href="/for-installers" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
+            For Installers
           </a>
           {authed ? (
             <>
@@ -93,8 +102,8 @@ export function Header() {
               <Link to="/login" className="block text-sm font-medium py-2" onClick={() => setMobileOpen(false)}>
                 Sign In
               </Link>
-              <Link to="/register" className="block text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg text-center" onClick={() => setMobileOpen(false)}>
-                List Your Company
+              <Link to="/for-installers" search={{ listing: "", state: "" }} className="block text-sm font-medium bg-accent text-accent-foreground px-4 py-2 rounded-lg text-center" onClick={() => setMobileOpen(false)}>
+                Get Featured
               </Link>
             </>
           )}

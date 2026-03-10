@@ -66,6 +66,7 @@ class Listing(Base):
 
     # Relationships
     owner = relationship("User", back_populates="listings")
+    plan = relationship("ListingPlan")
     images = relationship("ListingImage", back_populates="listing", cascade="all, delete-orphan")
     categories = relationship("Category", secondary="listing_categories")
 

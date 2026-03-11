@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     lead_price_cents: int = 1999  # $19.99 per lead
 
+    # SMTP (outreach emails)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "info@findsolarinstallers.xyz"
+    smtp_from_name: str = "Find Solar Installers"
+
     # Pipeline
     monthly_credit_budget: float = 500.0
 

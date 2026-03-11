@@ -16,6 +16,7 @@ import {
 } from "./routes/admin";
 import { adminAnalyticsRoute } from "./routes/admin-analytics";
 import { adminInstallerInquiriesRoute } from "./routes/admin-inquiries";
+import { adminOutreachRoute } from "./routes/admin-outreach";
 import { dashboardLayoutRoute, dashboardIndexRoute, dashboardListingsRoute, dashboardLeadsRoute, dashboardProfileRoute } from "./routes/dashboard";
 
 export const routeTree = rootRoute.addChildren([
@@ -39,6 +40,7 @@ export const routeTree = rootRoute.addChildren([
     adminPlansRoute,
     adminClaimsRoute,
     adminInstallerInquiriesRoute,
+    adminOutreachRoute,
     adminAnalyticsRoute,
     adminSettingsRoute,
   ]),
